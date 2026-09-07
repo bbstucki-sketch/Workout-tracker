@@ -67,7 +67,7 @@
         }
 
         label { display: block; margin-top: 8px; font-size: 0.9em; color: var(--subtext); }
-        input, select, button {
+        input, select, button, textarea {
             width: 100%;
             padding: 10px;
             margin-top: 4px;
@@ -76,6 +76,12 @@
             background-color: var(--input-bg);
             color: var(--text);
             box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
         }
 
         button.primary-btn {
@@ -183,6 +189,13 @@
         .set-label { font-size: 0.85em; color: var(--subtext); width: 45px; flex-shrink: 0; }
         .edit-box { background: #252525; padding: 10px; border-radius: 6px; margin-top: 8px; }
 
+        .note-tag {
+            font-style: italic;
+            color: #bb86fc;
+            font-size: 0.85em;
+            margin-top: 2px;
+        }
+
         /* Chart Styling */
         .chart-container {
             position: relative;
@@ -231,6 +244,12 @@
 
         <div class="card">
             <div id="preloadedList">Select a day to view preloaded routine.</div>
+            
+            <div id="dailyNotesContainer" style="display:none; margin-top: 16px; border-top: 1px solid #333; padding-top: 12px;">
+                <label>Daily Overall Notes</label>
+                <textarea id="dailyNotesInput" placeholder="e.g., Felt energetic, limited shoulder mobility today, did extra cardio..."></textarea>
+            </div>
+
             <button id="logAllBtn" class="primary-btn" onclick="logAllWorkouts()" style="display:none;">Save Routine Entry</button>
             <div id="logStatus" class="status-msg">Routine logged successfully!</div>
         </div>
@@ -533,16 +552,21 @@
         const selectedDay = document.getElementById('daySelect').value;
         const preloadedList = document.getElementById('preloadedList');
         const logAllBtn = document.getElementById('logAllBtn');
+        const dailyNotesContainer = document.getElementById('dailyNotesContainer');
         
         const dayExercises = exercises.filter(ex => ex.day === selectedDay);
 
         if (dayExercises.length === 0) {
             preloadedList.innerHTML = `<p style="text-align:center; color: var(--subtext);">No exercises preloaded for ${selectedDay}. Assign exercises under Manage tab.</p>`;
             logAllBtn.style.display = 'none';
+            dailyNotesContainer.style.display = 'none';
             return;
         }
 
         logAllBtn.style.display = 'block';
+        dailyNotesContainer.style.display = 'block';
+        document.getElementById('dailyNotesInput').value = '';
+
         preloadedList.innerHTML = dayExercises.map((ex) => {
             const lastLog = logs.slice().reverse().find(l => l.name === ex.name);
             let prevText = "No previous performance logged.";
@@ -559,6 +583,9 @@
                     const weightStr = lastLog.weight ? ` (+${lastLog.weight} lbs)` : '';
                     const durDisplay = lastLog.durations ? lastLog.durations.map((d, i) => `S${i+1}: ${d}s`).join(', ') : `${lastLog.duration}s`;
                     prevText = `Last (${lastLog.date}): ${durDisplay}${weightStr}`;
+                }
+                if (lastLog.note) {
+                    prevText += ` <br><span class="note-tag">Note: ${lastLog.note}</span>`;
                 }
             }
 
@@ -595,6 +622,9 @@
                     </div>
                     <div id="duration-sets-${sanitizedName}"></div>
                 `}
+                <div style="margin-top: 8px;">
+                    <input type="text" class="input-exercise-note" placeholder="Exercise note (e.g., dropped reps on set 3, wider grip)">
+                </div>
             </div>`;
         }).join('');
 
@@ -613,13 +643,18 @@
         const selectedDay = document.getElementById('daySelect').value;
         const timestamp = new Date().toISOString();
         const dateStr = new Date().toLocaleDateString();
+        const dailyOverallNote = document.getElementById('dailyNotesInput').value.trim();
         const blocks = document.querySelectorAll('.exercise-block');
 
         blocks.forEach(block => {
             const name = block.getAttribute('data-name');
             const type = block.getAttribute('data-type');
+            const exerciseNote = block.querySelector('.input-exercise-note').value.trim();
             
             let logEntry = { name: name, type: type, day: selectedDay, date: dateStr, timestamp: timestamp };
+
+            if (exerciseNote) logEntry.note = exerciseNote;
+            if (dailyOverallNote) logEntry.dailyNote = dailyOverallNote;
 
             if (type === 'reps') {
                 const weightInputs = block.querySelectorAll('.input-set-weight');
@@ -699,8 +734,12 @@
                     ? `${l.durations.map((d, i) => `Set ${i+1}: ${d}s`).join(' | ')}${weightStr}`
                     : `${l.duration} secs${weightStr}`;
             }
+
+            let exNoteStr = l.note ? `<br><span class="note-tag">Exercise Note: ${l.note}</span>` : '';
+            let dailyNoteStr = l.dailyNote ? `<br><span style="font-size:0.8em; color:var(--subtext);">Daily Note: ${l.dailyNote}</span>` : '';
+
             return `<div class="list-item">
-                <div><strong>${l.day} (${l.date})</strong><br>${l.name}: ${detail}</div>
+                <div><strong>${l.day} (${l.date})</strong><br>${l.name}: ${detail}${exNoteStr}${dailyNoteStr}</div>
             </div>`;
         }).join('');
     }
@@ -724,7 +763,6 @@
         const exerciseName = document.getElementById('chartExerciseSelect').value;
         const metric = document.getElementById('chartMetricSelect').value;
 
-        // Resize Canvas dynamically
         canvas.width = canvas.parentElement.clientWidth;
         canvas.height = canvas.parentElement.clientHeight;
 
@@ -739,7 +777,6 @@
             return;
         }
 
-        // Extract Data Points
         const points = exerciseLogs.map(l => {
             let val = 0;
             if (metric === 'maxWeight') {
@@ -759,7 +796,6 @@
         const maxVal = Math.max(...points.map(p => p.value), 1);
         const minVal = 0;
 
-        // Draw Axes
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -768,7 +804,6 @@
         ctx.lineTo(canvas.width - 10, canvas.height - padding);
         ctx.stroke();
 
-        // Plot Points and Lines
         const stepX = (canvas.width - padding - 20) / (points.length - 1);
         ctx.strokeStyle = '#bb86fc';
         ctx.lineWidth = 2;
@@ -783,7 +818,6 @@
         });
         ctx.stroke();
 
-        // Draw Data Points & Labels
         points.forEach((p, idx) => {
             const x = padding + idx * stepX;
             const y = canvas.height - padding - ((p.value - minVal) / (maxVal - minVal)) * (canvas.height - padding - 20);
@@ -806,7 +840,6 @@
         setTimeout(() => { el.style.display = 'none'; }, 2000);
     }
 
-    // Initialize App
     renderPreloadedWorkout();
 </script>
 </body>
