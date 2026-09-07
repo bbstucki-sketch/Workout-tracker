@@ -286,6 +286,18 @@
 
         <div class="card">
             <h3>Existing Exercises</h3>
+            <label>Filter by Day</label>
+            <select id="manageDayFilter" onchange="renderManageExercises()" style="margin-bottom: 12px;">
+                <option value="ALL">All Exercises</option>
+                <option value="Unassigned">Unassigned</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
             <div id="exerciseList"></div>
         </div>
     </div>
@@ -440,11 +452,28 @@
 
     function renderManageExercises() {
         const list = document.getElementById('exerciseList');
+        const filterVal = document.getElementById('manageDayFilter').value;
+
         if (exercises.length === 0) {
             list.innerHTML = "No custom exercises created yet.";
             return;
         }
-        list.innerHTML = exercises.map((ex, i) => {
+
+        const filtered = exercises.map((ex, originalIndex) => ({ ...ex, originalIndex }))
+            .filter(ex => {
+                if (filterVal === 'ALL') return true;
+                if (filterVal === 'Unassigned') return !ex.day || ex.day === 'Unassigned';
+                return ex.day === filterVal;
+            });
+
+        if (filtered.length === 0) {
+            list.innerHTML = `<p style="color: var(--subtext); text-align: center;">No exercises match filter "${filterVal}".</p>`;
+            return;
+        }
+
+        list.innerHTML = filtered.map((ex) => {
+            const i = ex.originalIndex;
+
             if (pendingDeleteIndex === i) {
                 return `
                 <div class="list-item">
@@ -844,4 +873,3 @@
 </script>
 </body>
 </html>
-
