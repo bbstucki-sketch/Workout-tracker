@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Tracker</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --accent: #bb86fc;
+            --text: #e0e0e0;
+            --subtext: #a0a0a0;
+            --input-bg: #2d2d2d;
+            --danger: #cf6679;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container { width: 100%; max-width: 500px; }
+        h1 { text-align: center; color: var(--accent); margin-bottom: 12px; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background-color: var(--card);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 4px;
+            background: none;
+            border: none;
+            color: var(--subtext);
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            margin: 0;
+            font-size: 0.85em;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent);
+            color: #000;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background-color: var(--card);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        label { display: block; margin-top: 8px; font-size: 0.9em; color: var(--subtext); }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 4px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            background-color: var(--input-bg);
+            color: var(--text);
+            box-sizing: border-box;
+        }
+
+        button.primary-btn {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: bold;
+            border: none;
+            margin-top: 16px;
+            cursor: pointer;
+        }
+
+        .previous-info {
+            background-color: #252525;
+            border-left: 3px solid var(--accent);
+            padding: 8px 12px;
+            margin: 8px 0;
+            font-size: 0.85em;
+            color: var(--subtext);
+        }
+
+        .row { display: flex; gap: 8px; align-items: center; }
+        .row > div { flex: 1; }
+
+        .list-item {
+            border-bottom: 1px solid #333;
+            padding: 12px 0;
+        }
+
+        .list-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .action-group { display: flex; gap: 6px; }
+
+        .edit-btn {
+            background-color: #333;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 6px 10px;
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .delete-btn {
+            background-color: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .cancel-btn {
+            background-color: #444;
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .status-msg {
+            font-size: 0.85em;
+            color: var(--accent);
+            margin-top: 8px;
+            text-align: center;
+            display: none;
+        }
+
+        .exercise-block {
+            border-bottom: 1px solid #333;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+
+        .exercise-block:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+
+        .badge {
+            background-color: #2d2d2d;
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75em;
+        }
+
+        .set-row { margin-top: 6px; }
+        .set-label { font-size: 0.85em; color: var(--subtext); width: 45px; flex-shrink: 0; }
+        .edit-box { background: #252525; padding: 10px; border-radius: 6px; margin-top: 8px; }
+
+        /* Chart Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            margin-top: 16px;
+            background: #181818;
+            border-radius: 6px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Workout Tracker</h1>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('logTab', event)">Log Workout</button>
+        <button class="tab-btn" onclick="switchTab('manageTab', event)">Manage</button>
+        <button class="tab-btn" onclick="switchTab('historyTab', event)">History</button>
+        <button class="tab-btn" onclick="switchTab('progressTab', event)">Progress</button>
+    </div>
+
+    <!-- TAB 1: LOG WORKOUT -->
+    <div id="logTab" class="tab-content active">
+        <div class="card">
+            <label>Select Day</label>
+            <select id="daySelect" onchange="renderPreloadedWorkout()">
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+        </div>
+
+        <div class="card">
+            <div id="preloadedList">Select a day to view preloaded routine.</div>
+            <button id="logAllBtn" class="primary-btn" onclick="logAllWorkouts()" style="display:none;">Save Routine Entry</button>
+            <div id="logStatus" class="status-msg">Routine logged successfully!</div>
+        </div>
+    </div>
+
+    <!-- TAB 2: MANAGE EXERCISES -->
+    <div id="manageTab" class="tab-content">
+        <div class="card">
+            <h3>Add Custom Exercise</h3>
+            <label>Exercise Name</label>
+            <input type="text" id="newExerciseName" placeholder="e.g., Weighted Plank, Incline Bench">
+            
+            <label>Tracking Type</label>
+            <select id="newExerciseType">
+                <option value="reps">Weight & Reps</option>
+                <option value="duration">Duration (Seconds)</option>
+            </select>
+
+            <label>Assign to Day</label>
+            <select id="newExerciseDay">
+                <option value="Unassigned">Unassigned</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+            
+            <button class="primary-btn" onclick="addExercise()">Save Exercise</button>
+            <div id="addStatus" class="status-msg">Exercise saved!</div>
+        </div>
+
+        <div class="card">
+            <h3>Existing Exercises</h3>
+            <div id="exerciseList"></div>
+        </div>
+    </div>
+
+    <!-- TAB 3: SEARCHABLE HISTORY -->
+    <div id="historyTab" class="tab-content">
+        <div class="card">
+            <h3>Filter History</h3>
+            <div class="row">
+                <div>
+                    <label>Filter by Day</label>
+                    <select id="historyDayFilter" onchange="renderHistory()">
+                        <option value="ALL">All Days</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                        <option value="Sunday">Sunday</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Timeframe</label>
+                    <select id="historyTimeFilter" onchange="renderHistory()">
+                        <option value="ALL">All Time</option>
+                        <option value="7">Past 7 Days</option>
+                        <option value="14">Past 2 Weeks</option>
+                        <option value="30">Past Month</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="historyList">No logged workouts match filter.</div>
+        </div>
+    </div>
+
+    <!-- TAB 4: PROGRESS GRAPH -->
+    <div id="progressTab" class="tab-content">
+        <div class="card">
+            <h3>Exercise Progress</h3>
+            <label>Select Exercise</label>
+            <select id="chartExerciseSelect" onchange="drawProgressChart()"></select>
+            
+            <label>Metric to Plot</label>
+            <select id="chartMetricSelect" onchange="drawProgressChart()">
+                <option value="maxWeight">Max Weight Lifted</option>
+                <option value="totalVolume">Total Volume (Weight x Reps)</option>
+                <option value="maxDuration">Max Duration (Seconds)</option>
+            </select>
+
+            <div class="chart-container">
+                <canvas id="progressCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let exercises = JSON.parse(localStorage.getItem('exercises')) || [
+        { name: "Bench Press", type: "reps", day: "Monday" },
+        { name: "Plank", type: "duration", day: "Monday" }
+    ];
+    let logs = JSON.parse(localStorage.getItem('logs')) || [];
+    let pendingDeleteIndex = null;
+    let editingIndex = null;
+
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    document.getElementById('daySelect').value = days[new Date().getDay()];
+
+    function saveState() {
+        localStorage.setItem('exercises', JSON.stringify(exercises));
+        localStorage.setItem('logs', JSON.stringify(logs));
+    }
+
+    function switchTab(tabId, evt) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        if (evt) evt.target.classList.add('active');
+        
+        if (tabId === 'manageTab') renderManageExercises();
+        if (tabId === 'historyTab') renderHistory();
+        if (tabId === 'logTab') renderPreloadedWorkout();
+        if (tabId === 'progressTab') populateProgressTab();
+    }
+
+    function addExercise() {
+        const nameInput = document.getElementById('newExerciseName');
+        const typeInput = document.getElementById('newExerciseType');
+        const dayInput = document.getElementById('newExerciseDay');
+        if (!nameInput.value.trim()) return;
+
+        exercises.push({ 
+            name: nameInput.value.trim(), 
+            type: typeInput.value, 
+            day: dayInput.value 
+        });
+        saveState();
+        nameInput.value = '';
+        renderManageExercises();
+        showStatus('addStatus');
+    }
+
+    function toggleEdit(index) {
+        editingIndex = (editingIndex === index) ? null : index;
+        pendingDeleteIndex = null;
+        renderManageExercises();
+    }
+
+    function saveExerciseEdit(index) {
+        const nameVal = document.getElementById(`edit-name-${index}`).value.trim();
+        const typeVal = document.getElementById(`edit-type-${index}`).value;
+        const dayVal = document.getElementById(`edit-day-${index}`).value;
+
+        if (!nameVal) return;
+
+        const oldName = exercises[index].name;
+        exercises[index].name = nameVal;
+        exercises[index].type = typeVal;
+        exercises[index].day = dayVal;
+
+        if (oldName !== nameVal) {
+            logs.forEach(l => { if (l.name === oldName) l.name = nameVal; });
+        }
+
+        editingIndex = null;
+        saveState();
+        renderManageExercises();
+    }
+
+    function requestDelete(index) {
+        pendingDeleteIndex = index;
+        editingIndex = null;
+        renderManageExercises();
+    }
+
+    function cancelDelete() {
+        pendingDeleteIndex = null;
+        renderManageExercises();
+    }
+
+    function confirmDelete(index) {
+        exercises.splice(index, 1);
+        pendingDeleteIndex = null;
+        saveState();
+        renderManageExercises();
+    }
+
+    function renderManageExercises() {
+        const list = document.getElementById('exerciseList');
+        if (exercises.length === 0) {
+            list.innerHTML = "No custom exercises created yet.";
+            return;
+        }
+        list.innerHTML = exercises.map((ex, i) => {
+            if (pendingDeleteIndex === i) {
+                return `
+                <div class="list-item">
+                    <span>Confirm delete <strong>${ex.name}</strong>?</span>
+                    <div class="action-group">
+                        <button class="delete-btn" onclick="confirmDelete(${i})">Yes</button>
+                        <button class="cancel-btn" onclick="cancelDelete()">No</button>
+                    </div>
+                </div>`;
+            }
+
+            if (editingIndex === i) {
+                return `
+                <div class="list-item">
+                    <strong>Edit Exercise</strong>
+                    <div class="edit-box">
+                        <label>Exercise Name</label>
+                        <input type="text" id="edit-name-${i}" value="${ex.name}">
+                        
+                        <label>Tracking Type</label>
+                        <select id="edit-type-${i}">
+                            <option value="reps" ${ex.type === 'reps' ? 'selected' : ''}>Weight & Reps</option>
+                            <option value="duration" ${ex.type === 'duration' ? 'selected' : ''}>Duration (Seconds)</option>
+                        </select>
+
+                        <label>Assigned Day</label>
+                        <select id="edit-day-${i}">
+                            ${["Unassigned", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(d => 
+                                `<option value="${d}" ${ex.day === d ? 'selected' : ''}>${d}</option>`
+                            ).join('')}
+                        </select>
+
+                        <div class="action-group" style="margin-top: 10px;">
+                            <button class="edit-btn" onclick="saveExerciseEdit(${i})">Save</button>
+                            <button class="cancel-btn" onclick="toggleEdit(${i})">Cancel</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            return `
+            <div class="list-item">
+                <div class="list-item-header">
+                    <span><strong>${ex.name}</strong> (${ex.type === 'reps' ? 'Reps' : 'Duration'})</span>
+                    <div class="action-group">
+                        <button class="edit-btn" onclick="toggleEdit(${i})">Edit</button>
+                        <button class="delete-btn" onclick="requestDelete(${i})">Delete</button>
+                    </div>
+                </div>
+                <div style="font-size:0.85em; color:var(--subtext);">Day: ${ex.day || 'Unassigned'}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderRepSets(exName, numSets) {
+        const container = document.getElementById(`reps-sets-${exName.replace(/\s+/g, '-')}`);
+        const lastLog = logs.slice().reverse().find(l => l.name === exName);
+        let html = '';
+
+        for (let s = 1; s <= numSets; s++) {
+            let prevW = '';
+            let prevR = '';
+
+            if (lastLog && lastLog.setsData && lastLog.setsData[s - 1]) {
+                prevW = lastLog.setsData[s - 1].weight || '';
+                prevR = lastLog.setsData[s - 1].reps || '';
+            } else if (lastLog && lastLog.weight && lastLog.reps) {
+                prevW = lastLog.weight;
+                prevR = lastLog.reps;
+            }
+
+            html += `
+            <div class="row set-row">
+                <span class="set-label">Set ${s}</span>
+                <div><input type="number" class="input-set-weight" placeholder="Weight" value="${prevW}"></div>
+                <div><input type="number" class="input-set-reps" placeholder="Reps" value="${prevR}"></div>
+            </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function renderDurationSets(exName, numSets) {
+        const container = document.getElementById(`duration-sets-${exName.replace(/\s+/g, '-')}`);
+        const lastLog = logs.slice().reverse().find(l => l.name === exName);
+        let html = '';
+
+        for (let s = 1; s <= numSets; s++) {
+            let prevSecs = '';
+            if (lastLog && lastLog.durations && lastLog.durations[s - 1]) {
+                prevSecs = lastLog.durations[s - 1];
+            } else if (lastLog && lastLog.duration && s === 1) {
+                prevSecs = lastLog.duration;
+            }
+
+            html += `
+            <div class="set-row">
+                <label>Set ${s} Duration (seconds)</label>
+                <input type="number" class="input-duration-set" placeholder="Secs" value="${prevSecs}">
+            </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function renderPreloadedWorkout() {
+        const selectedDay = document.getElementById('daySelect').value;
+        const preloadedList = document.getElementById('preloadedList');
+        const logAllBtn = document.getElementById('logAllBtn');
+        
+        const dayExercises = exercises.filter(ex => ex.day === selectedDay);
+
+        if (dayExercises.length === 0) {
+            preloadedList.innerHTML = `<p style="text-align:center; color: var(--subtext);">No exercises preloaded for ${selectedDay}. Assign exercises under Manage tab.</p>`;
+            logAllBtn.style.display = 'none';
+            return;
+        }
+
+        logAllBtn.style.display = 'block';
+        preloadedList.innerHTML = dayExercises.map((ex) => {
+            const lastLog = logs.slice().reverse().find(l => l.name === ex.name);
+            let prevText = "No previous performance logged.";
+
+            if (lastLog) {
+                if (ex.type === 'reps') {
+                    if (lastLog.setsData) {
+                        const setStr = lastLog.setsData.map((s, i) => `S${i+1}: ${s.weight}lbs×${s.reps}`).join(', ');
+                        prevText = `Last (${lastLog.date}): ${setStr}`;
+                    } else {
+                        prevText = `Last (${lastLog.date}): ${lastLog.weight} lbs × ${lastLog.reps} reps (${lastLog.sets} sets)`;
+                    }
+                } else {
+                    const weightStr = lastLog.weight ? ` (+${lastLog.weight} lbs)` : '';
+                    const durDisplay = lastLog.durations ? lastLog.durations.map((d, i) => `S${i+1}: ${d}s`).join(', ') : `${lastLog.duration}s`;
+                    prevText = `Last (${lastLog.date}): ${durDisplay}${weightStr}`;
+                }
+            }
+
+            const defaultSets = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.sets ? lastLog.sets : (lastLog && lastLog.durations ? lastLog.durations.length : 3));
+            const defaultWeight = lastLog && lastLog.weight ? lastLog.weight : '';
+            const sanitizedName = ex.name.replace(/\s+/g, '-');
+
+            return `
+            <div class="exercise-block" data-name="${ex.name}" data-type="${ex.type}">
+                <div style="font-weight:bold; margin-bottom: 4px;">
+                    ${ex.name} <span class="badge">${ex.type === 'reps' ? 'Reps/Weight' : 'Duration'}</span>
+                </div>
+                <div class="previous-info">${prevText}</div>
+                ${ex.type === 'reps' ? `
+                    <div style="margin-bottom: 8px;">
+                        <label>Number of Sets</label>
+                        <select class="input-rep-sets-count" onchange="renderRepSets('${ex.name}', this.value)">
+                            ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == defaultSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div id="reps-sets-${sanitizedName}"></div>
+                ` : `
+                    <div class="row">
+                        <div>
+                            <label>Sets</label>
+                            <select class="input-duration-sets-count" onchange="renderDurationSets('${ex.name}', this.value)">
+                                ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == defaultSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label>Added Weight (optional)</label>
+                            <input type="number" class="input-duration-weight" placeholder="0" value="${defaultWeight}">
+                        </div>
+                    </div>
+                    <div id="duration-sets-${sanitizedName}"></div>
+                `}
+            </div>`;
+        }).join('');
+
+        dayExercises.forEach(ex => {
+            const lastLog = logs.slice().reverse().find(l => l.name === ex.name);
+            const setVal = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.durations ? lastLog.durations.length : 3);
+            if (ex.type === 'reps') {
+                renderRepSets(ex.name, setVal);
+            } else {
+                renderDurationSets(ex.name, setVal);
+            }
+        });
+    }
+
+    function logAllWorkouts() {
+        const selectedDay = document.getElementById('daySelect').value;
+        const timestamp = new Date().toISOString();
+        const dateStr = new Date().toLocaleDateString();
+        const blocks = document.querySelectorAll('.exercise-block');
+
+        blocks.forEach(block => {
+            const name = block.getAttribute('data-name');
+            const type = block.getAttribute('data-type');
+            
+            let logEntry = { name: name, type: type, day: selectedDay, date: dateStr, timestamp: timestamp };
+
+            if (type === 'reps') {
+                const weightInputs = block.querySelectorAll('.input-set-weight');
+                const repsInputs = block.querySelectorAll('.input-set-reps');
+                let setsData = [];
+
+                weightInputs.forEach((wInput, idx) => {
+                    const w = wInput.value;
+                    const r = repsInputs[idx].value;
+                    if (w && r) {
+                        setsData.push({ weight: parseFloat(w), reps: parseFloat(r) });
+                    }
+                });
+
+                if (setsData.length > 0) {
+                    logEntry.setsData = setsData;
+                    logs.push(logEntry);
+                }
+            } else {
+                const weight = block.querySelector('.input-duration-weight').value;
+                const setInputs = block.querySelectorAll('.input-duration-set');
+                let durations = [];
+                setInputs.forEach(input => {
+                    if (input.value) durations.push(parseFloat(input.value));
+                });
+                if (durations.length > 0) {
+                    logEntry.durations = durations;
+                    if (weight) logEntry.weight = parseFloat(weight);
+                    logs.push(logEntry);
+                }
+            }
+        });
+
+        saveState();
+        renderPreloadedWorkout();
+        showStatus('logStatus');
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+        const dayFilter = document.getElementById('historyDayFilter').value;
+        const timeFilter = document.getElementById('historyTimeFilter').value;
+
+        if (logs.length === 0) {
+            historyList.innerHTML = "No logged workouts yet.";
+            return;
+        }
+
+        const now = new Date();
+        const filtered = logs.slice().reverse().filter(l => {
+            if (dayFilter !== 'ALL' && l.day !== dayFilter) return false;
+            
+            if (timeFilter !== 'ALL') {
+                const logDate = l.timestamp ? new Date(l.timestamp) : new Date(l.date);
+                const diffDays = (now - logDate) / (1000 * 60 * 60 * 24);
+                if (diffDays > parseInt(timeFilter)) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            historyList.innerHTML = "No workouts match your filter criteria.";
+            return;
+        }
+
+        historyList.innerHTML = filtered.map(l => {
+            let detail = '';
+            if (l.type === 'reps') {
+                if (l.setsData) {
+                    detail = l.setsData.map((s, i) => `Set ${i+1}: ${s.weight}lbs × ${s.reps} reps`).join(' | ');
+                } else {
+                    detail = `${l.weight} lbs × ${l.reps} reps (${l.sets} sets)`;
+                }
+            } else {
+                const weightStr = l.weight ? ` (+${l.weight} lbs)` : '';
+                detail = l.durations 
+                    ? `${l.durations.map((d, i) => `Set ${i+1}: ${d}s`).join(' | ')}${weightStr}`
+                    : `${l.duration} secs${weightStr}`;
+            }
+            return `<div class="list-item">
+                <div><strong>${l.day} (${l.date})</strong><br>${l.name}: ${detail}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function populateProgressTab() {
+        const select = document.getElementById('chartExerciseSelect');
+        const uniqueNames = [...new Set(exercises.map(e => e.name))];
+        
+        if (uniqueNames.length === 0) {
+            select.innerHTML = '<option value="">No exercises found</option>';
+            return;
+        }
+
+        select.innerHTML = uniqueNames.map(n => `<option value="${n}">${n}</option>`).join('');
+        drawProgressChart();
+    }
+
+    function drawProgressChart() {
+        const canvas = document.getElementById('progressCanvas');
+        const ctx = canvas.getContext('2d');
+        const exerciseName = document.getElementById('chartExerciseSelect').value;
+        const metric = document.getElementById('chartMetricSelect').value;
+
+        // Resize Canvas dynamically
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const exerciseLogs = logs.filter(l => l.name === exerciseName);
+        if (exerciseLogs.length < 2) {
+            ctx.fillStyle = '#a0a0a0';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Log at least 2 entries for this exercise to view progress.', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+
+        // Extract Data Points
+        const points = exerciseLogs.map(l => {
+            let val = 0;
+            if (metric === 'maxWeight') {
+                if (l.setsData) val = Math.max(...l.setsData.map(s => parseFloat(s.weight) || 0));
+                else val = parseFloat(l.weight) || 0;
+            } else if (metric === 'totalVolume') {
+                if (l.setsData) val = l.setsData.reduce((sum, s) => sum + ((parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0)), 0);
+                else val = (parseFloat(l.weight) || 0) * (parseFloat(l.reps) || 0);
+            } else if (metric === 'maxDuration') {
+                if (l.durations) val = Math.max(...l.durations.map(d => parseFloat(d) || 0));
+                else val = parseFloat(l.duration) || 0;
+            }
+            return { date: l.date, value: val };
+        });
+
+        const padding = 30;
+        const maxVal = Math.max(...points.map(p => p.value), 1);
+        const minVal = 0;
+
+        // Draw Axes
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, 10);
+        ctx.lineTo(padding, canvas.height - padding);
+        ctx.lineTo(canvas.width - 10, canvas.height - padding);
+        ctx.stroke();
+
+        // Plot Points and Lines
+        const stepX = (canvas.width - padding - 20) / (points.length - 1);
+        ctx.strokeStyle = '#bb86fc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        points.forEach((p, idx) => {
+            const x = padding + idx * stepX;
+            const y = canvas.height - padding - ((p.value - minVal) / (maxVal - minVal)) * (canvas.height - padding - 20);
+
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw Data Points & Labels
+        points.forEach((p, idx) => {
+            const x = padding + idx * stepX;
+            const y = canvas.height - padding - ((p.value - minVal) / (maxVal - minVal)) * (canvas.height - padding - 20);
+
+            ctx.fillStyle = '#bb86fc';
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#e0e0e0';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.value, x, y - 8);
+        });
+    }
+
+    function showStatus(elementId) {
+        const el = document.getElementById(elementId);
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 2000);
+    }
+
+    // Initialize App
+    renderPreloadedWorkout();
+</script>
+</body>
+</html>
+
