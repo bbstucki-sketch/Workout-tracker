@@ -13,6 +13,7 @@
             --subtext: #a0a0a0;
             --input-bg: #2d2d2d;
             --danger: #cf6679;
+            --warning: #ffb74d;
         }
 
         body {
@@ -236,6 +237,15 @@
             font-size: 0.75em;
         }
 
+        .badge-deload {
+            background-color: #3e2723;
+            color: var(--warning);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
         .set-row { margin-top: 6px; }
         .set-label { font-size: 0.85em; color: var(--subtext); width: 45px; flex-shrink: 0; }
         .edit-box { background: #252525; padding: 10px; border-radius: 6px; margin-top: 8px; }
@@ -262,6 +272,19 @@
             width: 100% !important;
             height: 100% !important;
         }
+
+        .deload-banner {
+            background-color: #2e1d08;
+            border: 1px solid var(--warning);
+            color: var(--warning);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -280,16 +303,40 @@
     <!-- TAB 1: LOG WORKOUT -->
     <div id="logTab" class="tab-content active">
         <div class="card">
-            <label>Select Day</label>
-            <select id="daySelect" onchange="renderPreloadedWorkout()">
-                <option value="Monday">Monday</option>
-                <option value="Tuesday">Tuesday</option>
-                <option value="Wednesday">Wednesday</option>
-                <option value="Thursday">Thursday</option>
-                <option value="Friday">Friday</option>
-                <option value="Saturday">Saturday</option>
-                <option value="Sunday">Sunday</option>
-            </select>
+            <div class="row">
+                <div>
+                    <label>Select Day</label>
+                    <select id="daySelect" onchange="renderPreloadedWorkout()">
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                        <option value="Sunday">Sunday</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Training Week</label>
+                    <select id="weekSelect" onchange="renderPreloadedWorkout()">
+                        <option value="1">Week 1</option>
+                        <option value="2">Week 2</option>
+                        <option value="3">Week 3</option>
+                        <option value="4">Week 4</option>
+                        <option value="5">Week 5</option>
+                        <option value="6">Week 6</option>
+                        <option value="7">Week 7 (Deload -20%)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Backlogging Date Selector -->
+            <label>Log Entry Date & Time (For Backlogging)</label>
+            <input type="datetime-local" id="logTimestamp">
+
+            <div id="deloadNotice" class="deload-banner" style="display: none;">
+                ⚡ <strong>Week 7 Deload Active:</strong> Sets reduced by 1, target weights reduced by 20%.
+            </div>
         </div>
 
         <div class="card">
@@ -297,7 +344,7 @@
             
             <div id="dailyNotesContainer" style="display:none; margin-top: 16px; border-top: 1px solid #333; padding-top: 12px;">
                 <label>Daily Overall Notes</label>
-                <textarea id="dailyNotesInput" placeholder="e.g., Felt energetic, limited shoulder mobility today, did extra cardio..."></textarea>
+                <textarea id="dailyNotesInput" placeholder="e.g., Felt energetic, backlogged from yesterday, deload felt smooth..."></textarea>
             </div>
 
             <button id="logAllBtn" class="primary-btn" onclick="logAllWorkouts()" style="display:none;">Save Routine Entry</button>
@@ -351,7 +398,7 @@
         </div>
     </div>
 
-    <!-- TAB 3: SEARCHABLE HISTORY -->
+    <!-- TAB 3: SEARCHABLE HISTORY (WITH DELETE CONTROLS) -->
     <div id="historyTab" class="tab-content">
         <div class="card">
             <h3>Filter History</h3>
@@ -426,10 +473,19 @@
 
     let logs = JSON.parse(localStorage.getItem('logs')) || [];
     let pendingDeleteIndex = null;
+    let pendingHistoryDeleteIndex = null;
     let editingIndex = null;
 
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     document.getElementById('daySelect').value = days[new Date().getDay()];
+    
+    // Set timestamp picker to local ISO format for current time
+    function setCurrentTimestamp() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('logTimestamp').value = now.toISOString().slice(0, 16);
+    }
+    setCurrentTimestamp();
 
     function saveState() {
         localStorage.setItem('exercises', JSON.stringify(exercises));
@@ -456,6 +512,11 @@
         if (mins > 0 && secs > 0) return `${mins}m ${secs}s`;
         if (mins > 0) return `${mins}m`;
         return `${secs}s`;
+    }
+
+    function roundToNearestTwoAndHalf(val) {
+        if (!val || isNaN(val)) return '';
+        return Math.round(val / 2.5) * 2.5;
     }
 
     function addExercise() {
@@ -645,7 +706,7 @@
         }).join('');
     }
 
-    function renderRepSets(exName, numSets) {
+    function renderRepSets(exName, numSets, isDeload = false) {
         const container = document.getElementById(`reps-sets-${exName.replace(/\s+/g, '-')}`);
         const lastLog = logs.slice().reverse().find(l => l.name === exName);
         let html = '';
@@ -662,10 +723,14 @@
                 prevR = lastLog.reps;
             }
 
+            if (isDeload && prevW !== '') {
+                prevW = roundToNearestTwoAndHalf(parseFloat(prevW) * 0.80);
+            }
+
             html += `
             <div class="row set-row">
                 <span class="set-label">Set ${s}</span>
-                <div><input type="number" class="input-set-weight" placeholder="Weight" value="${prevW}"></div>
+                <div><input type="number" step="0.5" class="input-set-weight" placeholder="Weight" value="${prevW}"></div>
                 <div><input type="number" class="input-set-reps" placeholder="Reps" value="${prevR}"></div>
             </div>`;
         }
@@ -702,10 +767,16 @@
 
     function renderPreloadedWorkout() {
         const selectedDay = document.getElementById('daySelect').value;
+        const currentWeek = parseInt(document.getElementById('weekSelect').value);
+        const isDeload = (currentWeek === 7);
+
         const preloadedList = document.getElementById('preloadedList');
         const logAllBtn = document.getElementById('logAllBtn');
         const dailyNotesContainer = document.getElementById('dailyNotesContainer');
+        const deloadNotice = document.getElementById('deloadNotice');
         
+        deloadNotice.style.display = isDeload ? 'flex' : 'none';
+
         const dayExercises = exercises.filter(ex => ex.days && ex.days.includes(selectedDay));
 
         if (dayExercises.length === 0) {
@@ -742,15 +813,22 @@
                 }
             }
 
-            const defaultSets = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.sets ? lastLog.sets : (lastLog && lastLog.durations ? lastLog.durations.length : 3));
-            const defaultWeight = lastLog && lastLog.weight ? lastLog.weight : '';
+            let baseSets = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.sets ? lastLog.sets : (lastLog && lastLog.durations ? lastLog.durations.length : 3));
+            let targetSets = isDeload ? Math.max(1, baseSets - 1) : baseSets;
+
+            let defaultWeight = lastLog && lastLog.weight ? lastLog.weight : '';
+            if (isDeload && defaultWeight !== '') {
+                defaultWeight = roundToNearestTwoAndHalf(parseFloat(defaultWeight) * 0.80);
+            }
+
             const sanitizedName = ex.name.replace(/\s+/g, '-');
 
             return `
             <div class="exercise-block" data-name="${ex.name}" data-type="${ex.type}">
                 <div class="exercise-header-row">
                     <div>
-                        <strong>${ex.name}</strong> <span class="badge">${ex.type === 'reps' ? 'Reps/Weight' : 'Duration'}</span>
+                        <strong>${ex.name}</strong> 
+                        <span class="${isDeload ? 'badge-deload' : 'badge'}">${isDeload ? 'Deload (-20%)' : (ex.type === 'reps' ? 'Reps/Weight' : 'Duration')}</span>
                     </div>
                     <div class="action-group">
                         <button class="order-btn" onclick="moveExerciseLog(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
@@ -760,23 +838,23 @@
                 <div class="previous-info">${prevText}</div>
                 ${ex.type === 'reps' ? `
                     <div style="margin-bottom: 8px;">
-                        <label>Number of Sets</label>
-                        <select class="input-rep-sets-count" onchange="renderRepSets('${ex.name}', this.value)">
-                            ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == defaultSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
+                        <label>Number of Sets ${isDeload ? '<strong style="color:var(--warning);">(Deload: -1 Set)</strong>' : ''}</label>
+                        <select class="input-rep-sets-count" onchange="renderRepSets('${ex.name}', this.value, ${isDeload})">
+                            ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == targetSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
                         </select>
                     </div>
                     <div id="reps-sets-${sanitizedName}"></div>
                 ` : `
                     <div class="row">
                         <div>
-                            <label>Sets</label>
+                            <label>Sets ${isDeload ? '<strong style="color:var(--warning);">(Deload: -1 Set)</strong>' : ''}</label>
                             <select class="input-duration-sets-count" onchange="renderDurationSets('${ex.name}', this.value)">
-                                ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == defaultSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
+                                ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == targetSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
                             </select>
                         </div>
                         <div>
                             <label>Added Weight (optional)</label>
-                            <input type="number" class="input-duration-weight" placeholder="0" value="${defaultWeight}">
+                            <input type="number" step="0.5" class="input-duration-weight" placeholder="0" value="${defaultWeight}">
                         </div>
                     </div>
                     <div id="duration-sets-${sanitizedName}"></div>
@@ -789,19 +867,27 @@
 
         dayExercises.forEach(ex => {
             const lastLog = logs.slice().reverse().find(l => l.name === ex.name);
-            const setVal = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.durations ? lastLog.durations.length : 3);
+            let baseSets = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.durations ? lastLog.durations.length : 3);
+            let targetSets = isDeload ? Math.max(1, baseSets - 1) : baseSets;
+
             if (ex.type === 'reps') {
-                renderRepSets(ex.name, setVal);
+                renderRepSets(ex.name, targetSets, isDeload);
             } else {
-                renderDurationSets(ex.name, setVal);
+                renderDurationSets(ex.name, targetSets);
             }
         });
     }
 
     function logAllWorkouts() {
         const selectedDay = document.getElementById('daySelect').value;
-        const timestamp = new Date().toISOString();
-        const dateStr = new Date().toLocaleDateString();
+        const weekNum = document.getElementById('weekSelect').value;
+        
+        // Handle Backlogging Timestamp
+        const rawTimestamp = document.getElementById('logTimestamp').value;
+        let entryDateObj = rawTimestamp ? new Date(rawTimestamp) : new Date();
+        const timestamp = entryDateObj.toISOString();
+        const dateStr = entryDateObj.toLocaleDateString();
+
         const dailyOverallNote = document.getElementById('dailyNotesInput').value.trim();
         const blocks = document.querySelectorAll('.exercise-block');
 
@@ -810,7 +896,14 @@
             const type = block.getAttribute('data-type');
             const exerciseNote = block.querySelector('.input-exercise-note').value.trim();
             
-            let logEntry = { name: name, type: type, day: selectedDay, date: dateStr, timestamp: timestamp };
+            let logEntry = { 
+                name: name, 
+                type: type, 
+                day: selectedDay, 
+                week: weekNum,
+                date: dateStr, 
+                timestamp: timestamp 
+            };
 
             if (exerciseNote) logEntry.note = exerciseNote;
             if (dailyOverallNote) logEntry.dailyNote = dailyOverallNote;
@@ -854,8 +947,27 @@
         });
 
         saveState();
+        setCurrentTimestamp(); // Reset timestamp to now
         renderPreloadedWorkout();
         showStatus('logStatus');
+    }
+
+    // --- HISTORY DELETION CONTROLS ---
+    function requestHistoryDelete(index) {
+        pendingHistoryDeleteIndex = index;
+        renderHistory();
+    }
+
+    function cancelHistoryDelete() {
+        pendingHistoryDeleteIndex = null;
+        renderHistory();
+    }
+
+    function confirmHistoryDelete(index) {
+        logs.splice(index, 1);
+        pendingHistoryDeleteIndex = null;
+        saveState();
+        renderHistory();
     }
 
     function renderHistory() {
@@ -869,7 +981,10 @@
         }
 
         const now = new Date();
-        const filtered = logs.slice().reverse().filter(l => {
+        const filtered = logs.slice().reverse().map((l, reversedIdx) => {
+            const originalIndex = logs.length - 1 - reversedIdx;
+            return { ...l, originalIndex };
+        }).filter(l => {
             if (dayFilter !== 'ALL' && l.day !== dayFilter) return false;
             
             if (timeFilter !== 'ALL') {
@@ -886,25 +1001,46 @@
         }
 
         historyList.innerHTML = filtered.map(l => {
+            const i = l.originalIndex;
+
+            if (pendingHistoryDeleteIndex === i) {
+                return `
+                <div class="list-item">
+                    <span>Delete entry for <strong>${l.name}</strong> (${l.date})?</span>
+                    <div class="action-group">
+                        <button class="delete-btn" onclick="confirmHistoryDelete(${i})">Yes</button>
+                        <button class="cancel-btn" onclick="cancelHistoryDelete()">No</button>
+                    </div>
+                </div>`;
+            }
+
             let detail = '';
             if (l.type === 'reps') {
                 if (l.setsData) {
-                    detail = l.setsData.map((s, i) => `Set ${i+1}: ${s.weight}lbs × ${s.reps} reps`).join(' | ');
+                    detail = l.setsData.map((s, idx) => `Set ${idx+1}: ${s.weight}lbs × ${s.reps} reps`).join(' | ');
                 } else {
                     detail = `${l.weight} lbs × ${l.reps} reps (${l.sets} sets)`;
                 }
             } else {
                 const weightStr = l.weight ? ` (+${l.weight} lbs)` : '';
                 detail = l.durations 
-                    ? `${l.durations.map((d, i) => `Set ${i+1}: ${formatTime(d)}`).join(' | ')}${weightStr}`
+                    ? `${l.durations.map((d, idx) => `Set ${idx+1}: ${formatTime(d)}`).join(' | ')}${weightStr}`
                     : `${formatTime(l.duration)}${weightStr}`;
             }
 
+            let weekBadge = l.week ? `<span class="${l.week == 7 ? 'badge-deload' : 'badge'}" style="margin-left: 6px;">Week ${l.week}${l.week == 7 ? ' Deload' : ''}</span>` : '';
             let exNoteStr = l.note ? `<br><span class="note-tag">Exercise Note: ${l.note}</span>` : '';
             let dailyNoteStr = l.dailyNote ? `<br><span style="font-size:0.8em; color:var(--subtext);">Daily Note: ${l.dailyNote}</span>` : '';
 
-            return `<div class="list-item">
-                <div><strong>${l.day} (${l.date})</strong><br>${l.name}: ${detail}${exNoteStr}${dailyNoteStr}</div>
+            return `
+            <div class="list-item">
+                <div class="list-item-header">
+                    <span><strong>${l.day} (${l.date})</strong>${weekBadge}</span>
+                    <button class="delete-btn" onclick="requestHistoryDelete(${i})">Delete</button>
+                </div>
+                <div style="font-size: 0.9em; margin-top: 4px;">
+                    <strong>${l.name}:</strong> ${detail}${exNoteStr}${dailyNoteStr}
+                </div>
             </div>`;
         }).join('');
     }
