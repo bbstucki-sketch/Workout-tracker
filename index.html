@@ -1,23 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Workout Tracker</title>
-  
-  <!-- Favicon link -->
-  <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="apple-touch-icon" href="favicon.png">
-
-  <style>
-    /* Your CSS styles go here */
-  </style>
-</head>
-<body>
-<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workout Tracker</title>
+    
+    <!-- App Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="./favicon.png">
+    <link rel="apple-touch-icon" href="./favicon.png">
+
     <style>
         :root {
             --bg: #121212;
@@ -105,6 +96,14 @@
             font-weight: bold;
             border: none;
             margin-top: 16px;
+            cursor: pointer;
+        }
+
+        .secondary-btn {
+            background-color: #333;
+            color: var(--text);
+            border: 1px solid #444;
+            font-weight: bold;
             cursor: pointer;
         }
 
@@ -366,8 +365,24 @@
         </div>
     </div>
 
-    <!-- TAB 2: MANAGE EXERCISES -->
+    <!-- TAB 2: MANAGE EXERCISES & DATA BACKUP -->
     <div id="manageTab" class="tab-content">
+        <!-- BACKUP & RESTORE DATA CARD -->
+        <div class="card">
+            <h3>Data Backup & Transfer</h3>
+            <p style="font-size: 0.85em; color: var(--subtext); margin-top: 0;">Export your workouts to a file to back them up or transfer them to a new link/device.</p>
+            <div class="row">
+                <div>
+                    <button class="secondary-btn" onclick="exportWorkoutData()">Export Backup</button>
+                </div>
+                <div>
+                    <button class="secondary-btn" onclick="document.getElementById('importFile').click()">Import Backup</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importWorkoutData(event)">
+                </div>
+            </div>
+            <div id="backupStatus" class="status-msg"></div>
+        </div>
+
         <div class="card">
             <h3>Add Custom Exercise</h3>
             <label>Exercise Name</label>
@@ -412,7 +427,7 @@
         </div>
     </div>
 
-    <!-- TAB 3: SEARCHABLE HISTORY (WITH DELETE CONTROLS) -->
+    <!-- TAB 3: SEARCHABLE HISTORY -->
     <div id="historyTab" class="tab-content">
         <div class="card">
             <h3>Filter History</h3>
@@ -493,7 +508,6 @@
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     document.getElementById('daySelect').value = days[new Date().getDay()];
     
-    // Set timestamp picker to local ISO format for current time
     function setCurrentTimestamp() {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -504,6 +518,55 @@
     function saveState() {
         localStorage.setItem('exercises', JSON.stringify(exercises));
         localStorage.setItem('logs', JSON.stringify(logs));
+    }
+
+    // --- DATA BACKUP & RESTORE FUNCTIONS ---
+    function exportWorkoutData() {
+        const backupData = {
+            exercises: exercises,
+            logs: logs,
+            exportDate: new Date().toISOString()
+        };
+        
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `workout-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importWorkoutData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                
+                if (parsed.exercises && parsed.logs) {
+                    exercises = parsed.exercises;
+                    logs = parsed.logs;
+                    saveState();
+                    
+                    const statusEl = document.getElementById('backupStatus');
+                    statusEl.innerText = "Backup imported successfully!";
+                    statusEl.style.display = 'block';
+                    setTimeout(() => { location.reload(); }, 1200);
+                } else {
+                    alert("Invalid backup file format.");
+                }
+            } catch (err) {
+                alert("Error reading backup file. Please make sure it's a valid JSON file.");
+            }
+        };
+        reader.readAsText(file);
     }
 
     function switchTab(tabId, evt) {
@@ -896,7 +959,6 @@
         const selectedDay = document.getElementById('daySelect').value;
         const weekNum = document.getElementById('weekSelect').value;
         
-        // Handle Backlogging Timestamp
         const rawTimestamp = document.getElementById('logTimestamp').value;
         let entryDateObj = rawTimestamp ? new Date(rawTimestamp) : new Date();
         const timestamp = entryDateObj.toISOString();
@@ -961,12 +1023,11 @@
         });
 
         saveState();
-        setCurrentTimestamp(); // Reset timestamp to now
+        setCurrentTimestamp();
         renderPreloadedWorkout();
         showStatus('logStatus');
     }
 
-    // --- HISTORY DELETION CONTROLS ---
     function requestHistoryDelete(index) {
         pendingHistoryDeleteIndex = index;
         renderHistory();
