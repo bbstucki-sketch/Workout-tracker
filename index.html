@@ -93,6 +93,32 @@
             cursor: pointer;
         }
 
+        .day-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 6px;
+            background: var(--input-bg);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .day-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85em;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .day-checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
         .previous-info {
             background-color: #252525;
             border-left: 3px solid var(--accent);
@@ -119,7 +145,25 @@
             margin-bottom: 6px;
         }
 
-        .action-group { display: flex; gap: 6px; }
+        .action-group { display: flex; gap: 4px; align-items: center; }
+
+        .order-btn {
+            background-color: #333;
+            color: var(--text);
+            border: 1px solid #444;
+            padding: 4px 8px;
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .order-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
 
         .edit-btn {
             background-color: #333;
@@ -177,6 +221,13 @@
             margin-bottom: 0;
         }
 
+        .exercise-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
         .badge {
             background-color: #2d2d2d;
             color: var(--accent);
@@ -196,7 +247,6 @@
             margin-top: 2px;
         }
 
-        /* Chart Styling */
         .chart-container {
             position: relative;
             width: 100%;
@@ -265,20 +315,19 @@
             <label>Tracking Type</label>
             <select id="newExerciseType">
                 <option value="reps">Weight & Reps</option>
-                <option value="duration">Duration (Seconds)</option>
+                <option value="duration">Duration (Min / Sec)</option>
             </select>
 
-            <label>Assign to Day</label>
-            <select id="newExerciseDay">
-                <option value="Unassigned">Unassigned</option>
-                <option value="Monday">Monday</option>
-                <option value="Tuesday">Tuesday</option>
-                <option value="Wednesday">Wednesday</option>
-                <option value="Thursday">Thursday</option>
-                <option value="Friday">Friday</option>
-                <option value="Saturday">Saturday</option>
-                <option value="Sunday">Sunday</option>
-            </select>
+            <label>Assign to Days</label>
+            <div class="day-checkboxes" id="newExerciseDays">
+                <label class="day-checkbox-item"><input type="checkbox" value="Monday"> Monday</label>
+                <label class="day-checkbox-item"><input type="checkbox" value="Tuesday"> Tuesday</label>
+                <label class="day-checkbox-item"><input type="checkbox" value="Wednesday"> Wednesday</label>
+                <label class="day-checkbox-item"><input type="checkbox" value="Thursday"> Thursday</label>
+                <label class="day-checkbox-item"><input type="checkbox" value="Friday"> Friday</label>
+                <label class="day-checkbox-item"><input type="checkbox" value="Saturday"> Saturday</label>
+                <label class="day-checkbox-item"><input type="checkbox" value="Sunday"> Sunday</label>
+            </div>
             
             <button class="primary-btn" onclick="addExercise()">Save Exercise</button>
             <div id="addStatus" class="status-msg">Exercise saved!</div>
@@ -359,10 +408,22 @@
 </div>
 
 <script>
+    const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
     let exercises = JSON.parse(localStorage.getItem('exercises')) || [
-        { name: "Bench Press", type: "reps", day: "Monday" },
-        { name: "Plank", type: "duration", day: "Monday" }
+        { name: "Bench Press", type: "reps", days: ["Monday"] },
+        { name: "Plank", type: "duration", days: ["Monday", "Wednesday", "Friday"] }
     ];
+
+    exercises = exercises.map(ex => {
+        if (ex.day && !ex.days) {
+            ex.days = (ex.day === "Unassigned") ? [] : [ex.day];
+            delete ex.day;
+        }
+        if (!ex.days) ex.days = [];
+        return ex;
+    });
+
     let logs = JSON.parse(localStorage.getItem('logs')) || [];
     let pendingDeleteIndex = null;
     let editingIndex = null;
@@ -388,21 +449,69 @@
         if (tabId === 'progressTab') populateProgressTab();
     }
 
+    function formatTime(totalSeconds) {
+        if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds)) return '0s';
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        if (mins > 0 && secs > 0) return `${mins}m ${secs}s`;
+        if (mins > 0) return `${mins}m`;
+        return `${secs}s`;
+    }
+
     function addExercise() {
         const nameInput = document.getElementById('newExerciseName');
         const typeInput = document.getElementById('newExerciseType');
-        const dayInput = document.getElementById('newExerciseDay');
+        const checkboxes = document.querySelectorAll('#newExerciseDays input[type="checkbox"]:checked');
+        
         if (!nameInput.value.trim()) return;
+
+        const selectedDays = Array.from(checkboxes).map(cb => cb.value);
 
         exercises.push({ 
             name: nameInput.value.trim(), 
             type: typeInput.value, 
-            day: dayInput.value 
+            days: selectedDays
         });
+        
         saveState();
         nameInput.value = '';
+        document.querySelectorAll('#newExerciseDays input[type="checkbox"]').forEach(cb => cb.checked = false);
         renderManageExercises();
         showStatus('addStatus');
+    }
+
+    function moveExerciseGlobal(index, direction) {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= exercises.length) return;
+        
+        const temp = exercises[index];
+        exercises[index] = exercises[targetIndex];
+        exercises[targetIndex] = temp;
+        
+        saveState();
+        renderManageExercises();
+    }
+
+    function moveExerciseLog(index, direction) {
+        const selectedDay = document.getElementById('daySelect').value;
+        const dayExercises = exercises.filter(ex => ex.days && ex.days.includes(selectedDay));
+        
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= dayExercises.length) return;
+
+        const currentEx = dayExercises[index];
+        const targetEx = dayExercises[targetIndex];
+
+        const globalIndexCurrent = exercises.indexOf(currentEx);
+        const globalIndexTarget = exercises.indexOf(targetEx);
+
+        if (globalIndexCurrent !== -1 && globalIndexTarget !== -1) {
+            const temp = exercises[globalIndexCurrent];
+            exercises[globalIndexCurrent] = exercises[globalIndexTarget];
+            exercises[globalIndexTarget] = temp;
+            saveState();
+            renderPreloadedWorkout();
+        }
     }
 
     function toggleEdit(index) {
@@ -414,14 +523,16 @@
     function saveExerciseEdit(index) {
         const nameVal = document.getElementById(`edit-name-${index}`).value.trim();
         const typeVal = document.getElementById(`edit-type-${index}`).value;
-        const dayVal = document.getElementById(`edit-day-${index}`).value;
+        const checkboxes = document.querySelectorAll(`#edit-days-${index} input[type="checkbox"]:checked`);
 
         if (!nameVal) return;
 
+        const selectedDays = Array.from(checkboxes).map(cb => cb.value);
         const oldName = exercises[index].name;
+        
         exercises[index].name = nameVal;
         exercises[index].type = typeVal;
-        exercises[index].day = dayVal;
+        exercises[index].days = selectedDays;
 
         if (oldName !== nameVal) {
             logs.forEach(l => { if (l.name === oldName) l.name = nameVal; });
@@ -462,8 +573,8 @@
         const filtered = exercises.map((ex, originalIndex) => ({ ...ex, originalIndex }))
             .filter(ex => {
                 if (filterVal === 'ALL') return true;
-                if (filterVal === 'Unassigned') return !ex.day || ex.day === 'Unassigned';
-                return ex.day === filterVal;
+                if (filterVal === 'Unassigned') return !ex.days || ex.days.length === 0;
+                return ex.days && ex.days.includes(filterVal);
             });
 
         if (filtered.length === 0) {
@@ -496,15 +607,17 @@
                         <label>Tracking Type</label>
                         <select id="edit-type-${i}">
                             <option value="reps" ${ex.type === 'reps' ? 'selected' : ''}>Weight & Reps</option>
-                            <option value="duration" ${ex.type === 'duration' ? 'selected' : ''}>Duration (Seconds)</option>
+                            <option value="duration" ${ex.type === 'duration' ? 'selected' : ''}>Duration (Min / Sec)</option>
                         </select>
 
-                        <label>Assigned Day</label>
-                        <select id="edit-day-${i}">
-                            ${["Unassigned", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(d => 
-                                `<option value="${d}" ${ex.day === d ? 'selected' : ''}>${d}</option>`
-                            ).join('')}
-                        </select>
+                        <label>Assigned Days</label>
+                        <div class="day-checkboxes" id="edit-days-${i}">
+                            ${WEEKDAYS.map(d => `
+                                <label class="day-checkbox-item">
+                                    <input type="checkbox" value="${d}" ${ex.days && ex.days.includes(d) ? 'checked' : ''}> ${d}
+                                </label>
+                            `).join('')}
+                        </div>
 
                         <div class="action-group" style="margin-top: 10px;">
                             <button class="edit-btn" onclick="saveExerciseEdit(${i})">Save</button>
@@ -514,16 +627,20 @@
                 </div>`;
             }
 
+            const dayDisplay = (ex.days && ex.days.length > 0) ? ex.days.join(', ') : 'Unassigned';
+
             return `
             <div class="list-item">
                 <div class="list-item-header">
                     <span><strong>${ex.name}</strong> (${ex.type === 'reps' ? 'Reps' : 'Duration'})</span>
                     <div class="action-group">
+                        <button class="order-btn" onclick="moveExerciseGlobal(${i}, -1)" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="order-btn" onclick="moveExerciseGlobal(${i}, 1)" ${i === exercises.length - 1 ? 'disabled' : ''}>▼</button>
                         <button class="edit-btn" onclick="toggleEdit(${i})">Edit</button>
                         <button class="delete-btn" onclick="requestDelete(${i})">Delete</button>
                     </div>
                 </div>
-                <div style="font-size:0.85em; color:var(--subtext);">Day: ${ex.day || 'Unassigned'}</div>
+                <div style="font-size:0.85em; color:var(--subtext);">Days: ${dayDisplay}</div>
             </div>`;
         }).join('');
     }
@@ -561,17 +678,23 @@
         let html = '';
 
         for (let s = 1; s <= numSets; s++) {
-            let prevSecs = '';
+            let totalSecs = 0;
             if (lastLog && lastLog.durations && lastLog.durations[s - 1]) {
-                prevSecs = lastLog.durations[s - 1];
+                totalSecs = lastLog.durations[s - 1];
             } else if (lastLog && lastLog.duration && s === 1) {
-                prevSecs = lastLog.duration;
+                totalSecs = lastLog.duration;
             }
+
+            const defaultMins = totalSecs ? Math.floor(totalSecs / 60) : '';
+            const defaultSecs = totalSecs ? totalSecs % 60 : '';
 
             html += `
             <div class="set-row">
-                <label>Set ${s} Duration (seconds)</label>
-                <input type="number" class="input-duration-set" placeholder="Secs" value="${prevSecs}">
+                <label>Set ${s} Duration</label>
+                <div class="row">
+                    <div><input type="number" class="input-duration-min" placeholder="Min" value="${defaultMins || ''}" min="0"></div>
+                    <div><input type="number" class="input-duration-sec" placeholder="Sec" value="${defaultSecs !== '' ? defaultSecs : ''}" min="0" max="59"></div>
+                </div>
             </div>`;
         }
         container.innerHTML = html;
@@ -583,7 +706,7 @@
         const logAllBtn = document.getElementById('logAllBtn');
         const dailyNotesContainer = document.getElementById('dailyNotesContainer');
         
-        const dayExercises = exercises.filter(ex => ex.day === selectedDay);
+        const dayExercises = exercises.filter(ex => ex.days && ex.days.includes(selectedDay));
 
         if (dayExercises.length === 0) {
             preloadedList.innerHTML = `<p style="text-align:center; color: var(--subtext);">No exercises preloaded for ${selectedDay}. Assign exercises under Manage tab.</p>`;
@@ -594,9 +717,8 @@
 
         logAllBtn.style.display = 'block';
         dailyNotesContainer.style.display = 'block';
-        document.getElementById('dailyNotesInput').value = '';
 
-        preloadedList.innerHTML = dayExercises.map((ex) => {
+        preloadedList.innerHTML = dayExercises.map((ex, idx) => {
             const lastLog = logs.slice().reverse().find(l => l.name === ex.name);
             let prevText = "No previous performance logged.";
 
@@ -610,7 +732,9 @@
                     }
                 } else {
                     const weightStr = lastLog.weight ? ` (+${lastLog.weight} lbs)` : '';
-                    const durDisplay = lastLog.durations ? lastLog.durations.map((d, i) => `S${i+1}: ${d}s`).join(', ') : `${lastLog.duration}s`;
+                    const durDisplay = lastLog.durations 
+                        ? lastLog.durations.map((d, i) => `S${i+1}: ${formatTime(d)}`).join(', ') 
+                        : formatTime(lastLog.duration);
                     prevText = `Last (${lastLog.date}): ${durDisplay}${weightStr}`;
                 }
                 if (lastLog.note) {
@@ -624,8 +748,14 @@
 
             return `
             <div class="exercise-block" data-name="${ex.name}" data-type="${ex.type}">
-                <div style="font-weight:bold; margin-bottom: 4px;">
-                    ${ex.name} <span class="badge">${ex.type === 'reps' ? 'Reps/Weight' : 'Duration'}</span>
+                <div class="exercise-header-row">
+                    <div>
+                        <strong>${ex.name}</strong> <span class="badge">${ex.type === 'reps' ? 'Reps/Weight' : 'Duration'}</span>
+                    </div>
+                    <div class="action-group">
+                        <button class="order-btn" onclick="moveExerciseLog(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="order-btn" onclick="moveExerciseLog(${idx}, 1)" ${idx === dayExercises.length - 1 ? 'disabled' : ''}>▼</button>
+                    </div>
                 </div>
                 <div class="previous-info">${prevText}</div>
                 ${ex.type === 'reps' ? `
@@ -704,11 +834,17 @@
                 }
             } else {
                 const weight = block.querySelector('.input-duration-weight').value;
-                const setInputs = block.querySelectorAll('.input-duration-set');
+                const minInputs = block.querySelectorAll('.input-duration-min');
+                const secInputs = block.querySelectorAll('.input-duration-sec');
                 let durations = [];
-                setInputs.forEach(input => {
-                    if (input.value) durations.push(parseFloat(input.value));
+
+                minInputs.forEach((mInput, idx) => {
+                    const mins = parseFloat(mInput.value) || 0;
+                    const secs = parseFloat(secInputs[idx].value) || 0;
+                    const totalSecs = (mins * 60) + secs;
+                    if (totalSecs > 0) durations.push(totalSecs);
                 });
+
                 if (durations.length > 0) {
                     logEntry.durations = durations;
                     if (weight) logEntry.weight = parseFloat(weight);
@@ -760,8 +896,8 @@
             } else {
                 const weightStr = l.weight ? ` (+${l.weight} lbs)` : '';
                 detail = l.durations 
-                    ? `${l.durations.map((d, i) => `Set ${i+1}: ${d}s`).join(' | ')}${weightStr}`
-                    : `${l.duration} secs${weightStr}`;
+                    ? `${l.durations.map((d, i) => `Set ${i+1}: ${formatTime(d)}`).join(' | ')}${weightStr}`
+                    : `${formatTime(l.duration)}${weightStr}`;
             }
 
             let exNoteStr = l.note ? `<br><span class="note-tag">Exercise Note: ${l.note}</span>` : '';
