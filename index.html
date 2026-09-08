@@ -365,8 +365,18 @@
         </div>
     </div>
 
-    <!-- TAB 2: MANAGE EXERCISES & DATA BACKUP -->
+    <!-- TAB 2: MANAGE EXERCISES & IMPORT -->
     <div id="manageTab" class="tab-content">
+        <!-- GOOGLE SHEETS IMPORT CARD -->
+        <div class="card">
+            <h3>Import Routine from Google Sheets</h3>
+            <p style="font-size: 0.85em; color: var(--subtext); margin-top: 0;">Publish your sheet as CSV (File > Share > Publish to web > CSV) and paste link below.</p>
+            <label>Google Sheet CSV URL</label>
+            <input type="url" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+            <button class="primary-btn" onclick="importFromGoogleSheet()">Fetch & Overwrite Routine</button>
+            <div id="sheetStatus" class="status-msg"></div>
+        </div>
+
         <!-- BACKUP & RESTORE DATA CARD -->
         <div class="card">
             <h3>Data Backup & Transfer</h3>
@@ -518,6 +528,60 @@
     function saveState() {
         localStorage.setItem('exercises', JSON.stringify(exercises));
         localStorage.setItem('logs', JSON.stringify(logs));
+    }
+
+    // --- GOOGLE SHEETS CSV IMPORT FUNCTION ---
+    async function importFromGoogleSheet() {
+        const urlInput = document.getElementById('sheetUrlInput');
+        const url = urlInput.value.trim();
+        const statusEl = document.getElementById('sheetStatus');
+
+        if (!url) {
+            alert('Please enter a valid published Google Sheet CSV URL.');
+            return;
+        }
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch sheet data.');
+            
+            const csvText = await response.text();
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+
+            const newExercises = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+                if (row.length < 3) continue;
+
+                const name = row[0].replace(/^"|"$/g, '').trim();
+                const type = row[1].replace(/^"|"$/g, '').trim().toLowerCase();
+                const daysRaw = row[2].replace(/^"|"$/g, '').trim();
+
+                const assignedDays = daysRaw.split(',').map(d => d.trim()).filter(d => d);
+
+                if (name && (type === 'reps' || type === 'duration')) {
+                    newExercises.push({ name, type, days: assignedDays });
+                }
+            }
+
+            if (newExercises.length === 0) {
+                alert('No valid exercises found in the provided sheet.');
+                return;
+            }
+
+            exercises = newExercises;
+            saveState();
+            renderManageExercises();
+
+            statusEl.innerText = `Successfully imported ${newExercises.length} exercises!`;
+            statusEl.style.display = 'block';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+
+        } catch (error) {
+            alert('Error reading Google Sheet CSV. Check that your sheet is published as CSV and the link is correct.');
+            console.error(error);
+        }
     }
 
     // --- DATA BACKUP & RESTORE FUNCTIONS ---
