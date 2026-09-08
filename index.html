@@ -180,6 +180,8 @@
             padding: 10px;
             border-radius: 4px;
             border: 1px solid #333;
+            max-height: 140px;
+            overflow-y: auto;
         }
 
         .day-checkbox-item {
@@ -326,7 +328,7 @@
         .chart-container {
             position: relative;
             width: 100%;
-            height: 220px;
+            height: 280px;
             margin-top: 16px;
             background: #181818;
             border-radius: 6px;
@@ -498,16 +500,16 @@
         </div>
     </div>
 
-    <!-- TAB 4: PROGRESS GRAPH -->
+    <!-- TAB 4: PROGRESS GRAPH (MULTI-SELECT) -->
     <div id="progressTab" class="tab-content">
         <div class="card">
             <h3>Exercise Progress</h3>
-            <label>Select Exercise</label>
-            <select id="chartExerciseSelect" onchange="drawProgressChart()"></select>
+            <label>Select Exercises (Up to 6)</label>
+            <div class="day-checkboxes" id="chartExerciseCheckboxes"></div>
             
             <label>Metric to Plot</label>
             <select id="chartMetricSelect" onchange="drawProgressChart()">
-                <option value="maxWeight">Max Weight Lifted</option>
+                <option value="maxWeight">Max Weight Lifted (lbs)</option>
                 <option value="totalVolume">Total Volume (Weight x Reps)</option>
                 <option value="maxDuration">Max Duration (Seconds)</option>
             </select>
@@ -557,6 +559,7 @@
 
 <script>
     const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const CHART_COLORS = ['#bb86fc', '#03dac6', '#ffb74d', '#cf6679', '#4fc3f7', '#aed581'];
 
     let exercises = JSON.parse(localStorage.getItem('exercises')) || [
         { name: "Bench Press", type: "reps", days: ["Monday"] },
@@ -597,7 +600,6 @@
         modal.classList.toggle('active');
     }
 
-    // --- GOOGLE SHEETS CSV IMPORT FUNCTION ---
     async function importFromGoogleSheet() {
         const urlInput = document.getElementById('sheetUrlInput');
         const url = urlInput.value.trim();
@@ -654,7 +656,6 @@
         }
     }
 
-    // --- DATA BACKUP & RESTORE FUNCTIONS ---
     function exportWorkoutData() {
         const backupData = {
             exercises: exercises,
@@ -1254,23 +1255,39 @@
         }).join('');
     }
 
+    // --- UPDATED MULTI-SELECT PROGRESS TAB FUNCTIONS ---
     function populateProgressTab() {
-        const select = document.getElementById('chartExerciseSelect');
+        const container = document.getElementById('chartExerciseCheckboxes');
         const uniqueNames = [...new Set(exercises.map(e => e.name))];
         
         if (uniqueNames.length === 0) {
-            select.innerHTML = '<option value="">No exercises found</option>';
+            container.innerHTML = '<span style="color:var(--subtext); font-size:0.85em;">No exercises found.</span>';
             return;
         }
 
-        select.innerHTML = uniqueNames.map(n => `<option value="${n}">${n}</option>`).join('');
+        container.innerHTML = uniqueNames.map((n, idx) => `
+            <label class="day-checkbox-item">
+                <input type="checkbox" class="chart-ex-cb" value="${n}" ${idx === 0 ? 'checked' : ''} onchange="handleChartCheckboxChange(this)"> ${n}
+            </label>
+        `).join('');
+
+        drawProgressChart();
+    }
+
+    function handleChartCheckboxChange(cb) {
+        const checked = document.querySelectorAll('.chart-ex-cb:checked');
+        if (checked.length > 6) {
+            cb.checked = false;
+            alert('You can select a maximum of 6 exercises at once.');
+            return;
+        }
         drawProgressChart();
     }
 
     function drawProgressChart() {
         const canvas = document.getElementById('progressCanvas');
         const ctx = canvas.getContext('2d');
-        const exerciseName = document.getElementById('chartExerciseSelect').value;
+        const selectedCbs = Array.from(document.querySelectorAll('.chart-ex-cb:checked')).map(c => c.value);
         const metric = document.getElementById('chartMetricSelect').value;
 
         canvas.width = canvas.parentElement.clientWidth;
@@ -1278,69 +1295,113 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const exerciseLogs = logs.filter(l => l.name === exerciseName);
-        if (exerciseLogs.length < 2) {
+        if (selectedCbs.length === 0) {
             ctx.fillStyle = '#a0a0a0';
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('Log at least 2 entries for this exercise to view progress.', canvas.width / 2, canvas.height / 2);
+            ctx.fillText('Select at least one exercise to graph.', canvas.width / 2, canvas.height / 2);
             return;
         }
 
-        const points = exerciseLogs.map(l => {
-            let val = 0;
-            if (metric === 'maxWeight') {
-                if (l.setsData) val = Math.max(...l.setsData.map(s => parseFloat(s.weight) || 0));
-                else val = parseFloat(l.weight) || 0;
-            } else if (metric === 'totalVolume') {
-                if (l.setsData) val = l.setsData.reduce((sum, s) => sum + ((parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0)), 0);
-                else val = (parseFloat(l.weight) || 0) * (parseFloat(l.reps) || 0);
-            } else if (metric === 'maxDuration') {
-                if (l.durations) val = Math.max(...l.durations.map(d => parseFloat(d) || 0));
-                else val = parseFloat(l.duration) || 0;
-            }
-            return { date: l.date, value: val };
+        // Gather dataset across selected exercises
+        let datasets = [];
+        let globalMax = 0;
+
+        selectedCbs.forEach((exName, idx) => {
+            const exLogs = logs.filter(l => l.name === exName);
+            const points = exLogs.map(l => {
+                let val = 0;
+                if (metric === 'maxWeight') {
+                    if (l.setsData) val = Math.max(...l.setsData.map(s => parseFloat(s.weight) || 0));
+                    else val = parseFloat(l.weight) || 0;
+                } else if (metric === 'totalVolume') {
+                    if (l.setsData) val = l.setsData.reduce((sum, s) => sum + ((parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0)), 0);
+                    else val = (parseFloat(l.weight) || 0) * (parseFloat(l.reps) || 0);
+                } else if (metric === 'maxDuration') {
+                    if (l.durations) val = Math.max(...l.durations.map(d => parseFloat(d) || 0));
+                    else val = parseFloat(l.duration) || 0;
+                }
+                return { date: l.date, value: val };
+            });
+
+            points.forEach(p => { if (p.value > globalMax) globalMax = p.value; });
+
+            datasets.push({
+                name: exName,
+                points: points,
+                color: CHART_COLORS[idx % CHART_COLORS.length]
+            });
         });
 
-        const padding = 30;
-        const maxVal = Math.max(...points.map(p => p.value), 1);
-        const minVal = 0;
+        const paddingLeft = 35;
+        const paddingBottom = 30;
+        const paddingTop = 40; // Extra room for dynamic legend
+        const maxVal = globalMax > 0 ? globalMax : 1;
 
+        // Draw Axes
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(padding, 10);
-        ctx.lineTo(padding, canvas.height - padding);
-        ctx.lineTo(canvas.width - 10, canvas.height - padding);
+        ctx.moveTo(paddingLeft, paddingTop);
+        ctx.lineTo(paddingLeft, canvas.height - paddingBottom);
+        ctx.lineTo(canvas.width - 10, canvas.height - paddingBottom);
         ctx.stroke();
 
-        const stepX = (canvas.width - padding - 20) / (points.length - 1);
-        ctx.strokeStyle = '#bb86fc';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
+        // Render Legend at Top
+        ctx.font = '11px sans-serif';
+        let legendX = paddingLeft;
+        let legendY = 18;
 
-        points.forEach((p, idx) => {
-            const x = padding + idx * stepX;
-            const y = canvas.height - padding - ((p.value - minVal) / (maxVal - minVal)) * (canvas.height - padding - 20);
-
-            if (idx === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-
-        points.forEach((p, idx) => {
-            const x = padding + idx * stepX;
-            const y = canvas.height - padding - ((p.value - minVal) / (maxVal - minVal)) * (canvas.height - padding - 20);
-
-            ctx.fillStyle = '#bb86fc';
+        datasets.forEach(ds => {
+            ctx.fillStyle = ds.color;
             ctx.beginPath();
-            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.arc(legendX + 4, legendY - 3, 4, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.fillStyle = '#e0e0e0';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(p.value, x, y - 8);
+            ctx.textAlign = 'left';
+            ctx.fillText(ds.name, legendX + 12, legendY);
+            
+            legendX += ctx.measureText(ds.name).width + 24;
+            if (legendX > canvas.width - 60) {
+                legendX = paddingLeft;
+                legendY += 16;
+            }
+        });
+
+        // Render Lines
+        datasets.forEach(ds => {
+            if (ds.points.length < 2) return;
+
+            const stepX = (canvas.width - paddingLeft - 20) / (ds.points.length - 1);
+            ctx.strokeStyle = ds.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            ds.points.forEach((p, idx) => {
+                const x = paddingLeft + idx * stepX;
+                const y = canvas.height - paddingBottom - (p.value / maxVal) * (canvas.height - paddingBottom - paddingTop);
+
+                if (idx === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Render Nodes
+            ds.points.forEach((p, idx) => {
+                const x = paddingLeft + idx * stepX;
+                const y = canvas.height - paddingBottom - (p.value / maxVal) * (canvas.height - paddingBottom - paddingTop);
+
+                ctx.fillStyle = ds.color;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(p.value, x, y - 7);
+            });
         });
     }
 
