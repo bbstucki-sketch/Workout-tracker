@@ -31,8 +31,75 @@
             justify-content: center;
         }
 
-        .container { width: 100%; max-width: 500px; }
-        h1 { text-align: center; color: var(--accent); margin-bottom: 12px; }
+        .container { width: 100%; max-width: 500px; position: relative; }
+        
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        h1 { color: var(--accent); margin: 0; font-size: 1.8em; }
+
+        /* Triple Dash Menu Button */
+        .menu-btn {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.8em;
+            cursor: pointer;
+            padding: 4px 8px;
+            width: auto;
+            margin: 0;
+            line-height: 1;
+        }
+
+        /* Modal Menu Drawer */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: var(--bg);
+            border: 1px solid #333;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 480px;
+            padding: 16px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--subtext);
+            font-size: 1.5em;
+            cursor: pointer;
+            width: auto;
+            margin: 0;
+            padding: 0 8px;
+        }
 
         .nav-tabs {
             display: flex;
@@ -85,10 +152,7 @@
             font-family: inherit;
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
+        textarea { resize: vertical; min-height: 60px; }
 
         button.primary-btn {
             background-color: var(--accent);
@@ -145,10 +209,7 @@
         .row { display: flex; gap: 8px; align-items: center; }
         .row > div { flex: 1; }
 
-        .list-item {
-            border-bottom: 1px solid #333;
-            padding: 12px 0;
-        }
+        .list-item { border-bottom: 1px solid #333; padding: 12px 0; }
 
         .list-item-header {
             display: flex;
@@ -174,10 +235,7 @@
             font-weight: bold;
         }
 
-        .order-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
+        .order-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .edit-btn {
             background-color: #333;
@@ -263,12 +321,7 @@
         .set-label { font-size: 0.85em; color: var(--subtext); width: 45px; flex-shrink: 0; }
         .edit-box { background: #252525; padding: 10px; border-radius: 6px; margin-top: 8px; }
 
-        .note-tag {
-            font-style: italic;
-            color: #bb86fc;
-            font-size: 0.85em;
-            margin-top: 2px;
-        }
+        .note-tag { font-style: italic; color: #bb86fc; font-size: 0.85em; margin-top: 2px; }
 
         .chart-container {
             position: relative;
@@ -281,10 +334,7 @@
             box-sizing: border-box;
         }
 
-        canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
+        canvas { width: 100% !important; height: 100% !important; }
 
         .deload-banner {
             background-color: #2e1d08;
@@ -303,7 +353,10 @@
 <body>
 
 <div class="container">
-    <h1>Workout Tracker</h1>
+    <div class="header-row">
+        <h1>Workout Tracker</h1>
+        <button class="menu-btn" onclick="toggleMenu()" title="Tools & Settings">☰</button>
+    </div>
 
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
@@ -343,7 +396,6 @@
                 </div>
             </div>
 
-            <!-- Backlogging Date Selector -->
             <label>Log Entry Date & Time (For Backlogging)</label>
             <input type="datetime-local" id="logTimestamp">
 
@@ -365,34 +417,8 @@
         </div>
     </div>
 
-    <!-- TAB 2: MANAGE EXERCISES & IMPORT -->
+    <!-- TAB 2: MANAGE EXERCISES -->
     <div id="manageTab" class="tab-content">
-        <!-- GOOGLE SHEETS IMPORT CARD -->
-        <div class="card">
-            <h3>Import Routine from Google Sheets</h3>
-            <p style="font-size: 0.85em; color: var(--subtext); margin-top: 0;">Publish your sheet as CSV (File > Share > Publish to web > CSV) and paste link below.</p>
-            <label>Google Sheet CSV URL</label>
-            <input type="url" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
-            <button class="primary-btn" onclick="importFromGoogleSheet()">Fetch & Overwrite Routine</button>
-            <div id="sheetStatus" class="status-msg"></div>
-        </div>
-
-        <!-- BACKUP & RESTORE DATA CARD -->
-        <div class="card">
-            <h3>Data Backup & Transfer</h3>
-            <p style="font-size: 0.85em; color: var(--subtext); margin-top: 0;">Export your workouts to a file to back them up or transfer them to a new link/device.</p>
-            <div class="row">
-                <div>
-                    <button class="secondary-btn" onclick="exportWorkoutData()">Export Backup</button>
-                </div>
-                <div>
-                    <button class="secondary-btn" onclick="document.getElementById('importFile').click()">Import Backup</button>
-                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importWorkoutData(event)">
-                </div>
-            </div>
-            <div id="backupStatus" class="status-msg"></div>
-        </div>
-
         <div class="card">
             <h3>Add Custom Exercise</h3>
             <label>Exercise Name</label>
@@ -493,6 +519,42 @@
     </div>
 </div>
 
+<!-- TRIPLE DASH MENU MODAL OVERLAY -->
+<div id="menuModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 style="margin:0; color:var(--accent);">Tools & Settings</h3>
+            <button class="close-btn" onclick="toggleMenu()">✕</button>
+        </div>
+
+        <!-- GOOGLE SHEETS IMPORT CARD -->
+        <div class="card">
+            <h3>Import Routine from Google Sheets</h3>
+            <p style="font-size: 0.85em; color: var(--subtext); margin-top: 0;">Publish your sheet as CSV (File > Share > Publish to web > CSV) and paste link below.</p>
+            <label>Google Sheet CSV URL</label>
+            <input type="url" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+            <button class="primary-btn" onclick="importFromGoogleSheet()">Fetch & Overwrite Routine</button>
+            <div id="sheetStatus" class="status-msg"></div>
+        </div>
+
+        <!-- BACKUP & RESTORE DATA CARD -->
+        <div class="card" style="margin-bottom:0;">
+            <h3>Data Backup & Transfer</h3>
+            <p style="font-size: 0.85em; color: var(--subtext); margin-top: 0;">Export your workouts to a file to back them up or transfer them to a new device.</p>
+            <div class="row">
+                <div>
+                    <button class="secondary-btn" onclick="exportWorkoutData()">Export Backup</button>
+                </div>
+                <div>
+                    <button class="secondary-btn" onclick="document.getElementById('importFile').click()">Import Backup</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importWorkoutData(event)">
+                </div>
+            </div>
+            <div id="backupStatus" class="status-msg"></div>
+        </div>
+    </div>
+</div>
+
 <script>
     const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -528,6 +590,11 @@
     function saveState() {
         localStorage.setItem('exercises', JSON.stringify(exercises));
         localStorage.setItem('logs', JSON.stringify(logs));
+    }
+
+    function toggleMenu() {
+        const modal = document.getElementById('menuModal');
+        modal.classList.toggle('active');
     }
 
     // --- GOOGLE SHEETS CSV IMPORT FUNCTION ---
@@ -576,7 +643,10 @@
 
             statusEl.innerText = `Successfully imported ${newExercises.length} exercises!`;
             statusEl.style.display = 'block';
-            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+            setTimeout(() => { 
+                statusEl.style.display = 'none'; 
+                toggleMenu(); 
+            }, 1500);
 
         } catch (error) {
             alert('Error reading Google Sheet CSV. Check that your sheet is published as CSV and the link is correct.');
