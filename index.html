@@ -583,6 +583,10 @@
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     document.getElementById('daySelect').value = days[new Date().getDay()];
     
+    // Load saved training week from localStorage, default to 1 if not set
+    const savedWeek = localStorage.getItem('selectedWorkoutWeek') || "1";
+    document.getElementById('weekSelect').value = savedWeek;
+
     function setCurrentTimestamp() {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -980,13 +984,16 @@
     function renderPreloadedWorkout() {
         const selectedDay = document.getElementById('daySelect').value;
         const currentWeek = parseInt(document.getElementById('weekSelect').value);
-        const isDeload = (currentWeek === 7);
+        
+        // Save selected week to persistent storage whenever changed
+        localStorage.setItem('selectedWorkoutWeek', currentWeek);
 
         const preloadedList = document.getElementById('preloadedList');
         const logAllBtn = document.getElementById('logAllBtn');
         const dailyNotesContainer = document.getElementById('dailyNotesContainer');
         const deloadNotice = document.getElementById('deloadNotice');
         
+        const isDeload = (currentWeek === 7);
         deloadNotice.style.display = isDeload ? 'flex' : 'none';
 
         const dayExercises = exercises.filter(ex => ex.days && ex.days.includes(selectedDay));
@@ -1255,7 +1262,7 @@
         }).join('');
     }
 
-    // --- UPDATED MULTI-SELECT PROGRESS TAB FUNCTIONS ---
+    // --- MULTI-SELECT PROGRESS TAB FUNCTIONS ---
     function populateProgressTab() {
         const container = document.getElementById('chartExerciseCheckboxes');
         const uniqueNames = [...new Set(exercises.map(e => e.name))];
@@ -1303,7 +1310,6 @@
             return;
         }
 
-        // Gather dataset across selected exercises
         let datasets = [];
         let globalMax = 0;
 
@@ -1335,10 +1341,9 @@
 
         const paddingLeft = 35;
         const paddingBottom = 30;
-        const paddingTop = 40; // Extra room for dynamic legend
+        const paddingTop = 40;
         const maxVal = globalMax > 0 ? globalMax : 1;
 
-        // Draw Axes
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1347,7 +1352,6 @@
         ctx.lineTo(canvas.width - 10, canvas.height - paddingBottom);
         ctx.stroke();
 
-        // Render Legend at Top
         ctx.font = '11px sans-serif';
         let legendX = paddingLeft;
         let legendY = 18;
@@ -1369,7 +1373,6 @@
             }
         });
 
-        // Render Lines
         datasets.forEach(ds => {
             if (ds.points.length < 2) return;
 
@@ -1387,7 +1390,6 @@
             });
             ctx.stroke();
 
-            // Render Nodes
             ds.points.forEach((p, idx) => {
                 const x = paddingLeft + idx * stepX;
                 const y = canvas.height - paddingBottom - (p.value / maxVal) * (canvas.height - paddingBottom - paddingTop);
