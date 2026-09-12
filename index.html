@@ -415,7 +415,6 @@
             </div>
 
             <button id="logAllBtn" class="primary-btn" onclick="logAllWorkouts()" style="display:none;">Save Routine Entry</button>
-            <div id="logStatus" class="status-msg">Routine logged successfully!</div>
         </div>
     </div>
 
@@ -557,6 +556,15 @@
     </div>
 </div>
 
+<!-- WORKOUT COMPLETE POPUP MODAL -->
+<div id="completionModal" class="modal-overlay">
+    <div class="modal-content" style="text-align: center; padding: 24px;">
+        <h2 style="color: var(--accent); margin-top: 0;">🎉 Workout Complete!</h2>
+        <p style="color: var(--text); margin-bottom: 20px;">Great job crushing today's routine. Your log has been saved!</p>
+        <button class="primary-btn" onclick="closeCompletionModal()">Awesome</button>
+    </div>
+</div>
+
 <script>
     const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const CHART_COLORS = ['#bb86fc', '#03dac6', '#ffb74d', '#cf6679', '#4fc3f7', '#aed581'];
@@ -602,6 +610,14 @@
     function toggleMenu() {
         const modal = document.getElementById('menuModal');
         modal.classList.toggle('active');
+    }
+
+    function showCompletionModal() {
+        document.getElementById('completionModal').classList.add('active');
+    }
+
+    function closeCompletionModal() {
+        document.getElementById('completionModal').classList.remove('active');
     }
 
     async function importFromGoogleSheet() {
@@ -1109,6 +1125,8 @@
         const dailyOverallNote = document.getElementById('dailyNotesInput').value.trim();
         const blocks = document.querySelectorAll('.exercise-block');
 
+        let loggedAny = false;
+
         blocks.forEach(block => {
             const name = block.getAttribute('data-name');
             const type = block.getAttribute('data-type');
@@ -1142,6 +1160,7 @@
                 if (setsData.length > 0) {
                     logEntry.setsData = setsData;
                     logs.push(logEntry);
+                    loggedAny = true;
                 }
             } else {
                 const weight = block.querySelector('.input-duration-weight').value;
@@ -1160,14 +1179,19 @@
                     logEntry.durations = durations;
                     if (weight) logEntry.weight = parseFloat(weight);
                     logs.push(logEntry);
+                    loggedAny = true;
                 }
             }
         });
 
-        saveState();
-        setCurrentTimestamp();
-        renderPreloadedWorkout();
-        showStatus('logStatus');
+        if (loggedAny) {
+            saveState();
+            setCurrentTimestamp();
+            renderPreloadedWorkout();
+            showCompletionModal(); // Shows the popup on successful save
+        } else {
+            alert("Please enter weights/reps or duration for at least one set before saving.");
+        }
     }
 
     function requestHistoryDelete(index) {
