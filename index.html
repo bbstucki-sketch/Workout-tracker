@@ -386,7 +386,7 @@
                 </div>
                 <div>
                     <label>Training Week</label>
-                    <select id="weekSelect" onchange="renderPreloadedWorkout()">
+                    <select id="weekSelect" onchange="handleManualWeekSelect()">
                         <option value="1">Week 1</option>
                         <option value="2">Week 2</option>
                         <option value="3">Week 3</option>
@@ -499,10 +499,23 @@
         </div>
     </div>
 
-    <!-- TAB 4: PROGRESS GRAPH (MULTI-SELECT) -->
+    <!-- TAB 4: PROGRESS GRAPH (MULTI-SELECT WITH DAY FILTER) -->
     <div id="progressTab" class="tab-content">
         <div class="card">
             <h3>Exercise Progress</h3>
+            
+            <label>Filter Exercises by Scheduled Day</label>
+            <select id="progressDayFilter" onchange="populateProgressTab()">
+                <option value="ALL">All Exercises</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+
             <label>Select Exercises (Up to 6)</label>
             <div class="day-checkboxes" id="chartExerciseCheckboxes"></div>
             
@@ -588,12 +601,41 @@
     let pendingHistoryDeleteIndex = null;
     let editingIndex = null;
 
+    // --- AUTOMATIC SUNDAY WEEK INCREMENT LOGIC ---
+    function getSundayDateString(d) {
+        const date = new Date(d);
+        const day = date.getDay(); // 0 is Sunday
+        const diff = date.getDate() - day;
+        const sunday = new Date(date.setDate(diff));
+        return sunday.toISOString().slice(0, 10);
+    }
+
+    function checkAndIncrementWeek() {
+        const today = new Date();
+        const currentSundayStr = getSundayDateString(today);
+        const lastIncrementedSunday = localStorage.getItem('lastIncrementedSunday');
+        let currentWeek = parseInt(localStorage.getItem('selectedWorkoutWeek') || "1");
+
+        // If today is Sunday (or past a Sunday) and we haven't incremented for this Sunday yet:
+        if (today.getDay() === 0 && lastIncrementedSunday !== currentSundayStr) {
+            currentWeek = currentWeek >= 7 ? 1 : currentWeek + 1;
+            localStorage.setItem('selectedWorkoutWeek', currentWeek);
+            localStorage.setItem('lastIncrementedSunday', currentSundayStr);
+        }
+
+        document.getElementById('weekSelect').value = currentWeek;
+    }
+
+    function handleManualWeekSelect() {
+        const currentWeek = document.getElementById('weekSelect').value;
+        localStorage.setItem('selectedWorkoutWeek', currentWeek);
+        renderPreloadedWorkout();
+    }
+
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     document.getElementById('daySelect').value = days[new Date().getDay()];
-    
-    // Load saved training week from localStorage, default to 1 if not set
-    const savedWeek = localStorage.getItem('selectedWorkoutWeek') || "1";
-    document.getElementById('weekSelect').value = savedWeek;
+
+    checkAndIncrementWeek();
 
     function setCurrentTimestamp() {
         const now = new Date();
@@ -1000,9 +1042,6 @@
     function renderPreloadedWorkout() {
         const selectedDay = document.getElementById('daySelect').value;
         const currentWeek = parseInt(document.getElementById('weekSelect').value);
-        
-        // Save selected week to persistent storage whenever changed
-        localStorage.setItem('selectedWorkoutWeek', currentWeek);
 
         const preloadedList = document.getElementById('preloadedList');
         const logAllBtn = document.getElementById('logAllBtn');
@@ -1188,7 +1227,7 @@
             saveState();
             setCurrentTimestamp();
             renderPreloadedWorkout();
-            showCompletionModal(); // Shows the popup on successful save
+            showCompletionModal();
         } else {
             alert("Please enter weights/reps or duration for at least one set before saving.");
         }
@@ -1286,13 +1325,21 @@
         }).join('');
     }
 
-    // --- MULTI-SELECT PROGRESS TAB FUNCTIONS ---
+    // --- PROGRESS TAB WITH DAY-OF-WEEK FILTER ---
     function populateProgressTab() {
         const container = document.getElementById('chartExerciseCheckboxes');
-        const uniqueNames = [...new Set(exercises.map(e => e.name))];
+        const selectedDay = document.getElementById('progressDayFilter').value;
+
+        const filteredExercises = exercises.filter(ex => {
+            if (selectedDay === 'ALL') return true;
+            return ex.days && ex.days.includes(selectedDay);
+        });
+
+        const uniqueNames = [...new Set(filteredExercises.map(e => e.name))];
         
         if (uniqueNames.length === 0) {
-            container.innerHTML = '<span style="color:var(--subtext); font-size:0.85em;">No exercises found.</span>';
+            container.innerHTML = '<span style="color:var(--subtext); font-size:0.85em;">No exercises found for this day filter.</span>';
+            drawProgressChart();
             return;
         }
 
