@@ -283,23 +283,46 @@
             display: none;
         }
 
+        /* Collapsible Exercise Styling */
         .exercise-block {
-            border-bottom: 1px solid #333;
-            padding-bottom: 12px;
-            margin-bottom: 12px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background-color: #1a1a1a;
+            overflow: hidden;
         }
 
-        .exercise-block:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-            margin-bottom: 0;
-        }
-
-        .exercise-header-row {
+        .exercise-header-clickable {
+            padding: 12px;
+            background-color: #242424;
+            cursor: pointer;
+            user-select: none;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .exercise-header-clickable:hover {
+            background-color: #2c2c2c;
+        }
+
+        .exercise-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collapse-icon {
+            font-size: 0.8em;
+            color: var(--accent);
+            transition: transform 0.2s;
+        }
+
+        .exercise-body {
+            padding: 12px;
+            border-top: 1px solid #333;
+            background-color: var(--card);
         }
 
         .badge {
@@ -601,10 +624,40 @@
     let pendingHistoryDeleteIndex = null;
     let editingIndex = null;
 
-    // --- AUTOMATIC SUNDAY WEEK INCREMENT LOGIC ---
+    // Track collapse state across re-renders
+    let openBlocks = {};
+
+    function toggleExerciseCollapse(sanitizedName) {
+        const body = document.getElementById(`body-${sanitizedName}`);
+        const icon = document.getElementById(`icon-${sanitizedName}`);
+        if (!body) return;
+
+        if (body.style.display === "none") {
+            body.style.display = "block";
+            if (icon) icon.innerText = "▲";
+            openBlocks[sanitizedName] = true;
+        } else {
+            body.style.display = "none";
+            if (icon) icon.innerText = "▼";
+            openBlocks[sanitizedName] = false;
+        }
+    }
+
+    // Cascade weight values down through sets
+    function handleWeightInput(changedInput, startIdx) {
+        const val = changedInput.value;
+        const parentBlock = changedInput.closest('.exercise-block');
+        if (!parentBlock) return;
+
+        const allWeightInputs = Array.from(parentBlock.querySelectorAll('.input-set-weight'));
+        for (let i = startIdx + 1; i < allWeightInputs.length; i++) {
+            allWeightInputs[i].value = val;
+        }
+    }
+
     function getSundayDateString(d) {
         const date = new Date(d);
-        const day = date.getDay(); // 0 is Sunday
+        const day = date.getDay();
         const diff = date.getDate() - day;
         const sunday = new Date(date.setDate(diff));
         return sunday.toISOString().slice(0, 10);
@@ -616,7 +669,6 @@
         const lastIncrementedSunday = localStorage.getItem('lastIncrementedSunday');
         let currentWeek = parseInt(localStorage.getItem('selectedWorkoutWeek') || "1");
 
-        // If today is Sunday (or past a Sunday) and we haven't incremented for this Sunday yet:
         if (today.getDay() === 0 && lastIncrementedSunday !== currentSundayStr) {
             currentWeek = currentWeek >= 7 ? 1 : currentWeek + 1;
             localStorage.setItem('selectedWorkoutWeek', currentWeek);
@@ -1004,7 +1056,7 @@
             html += `
             <div class="row set-row">
                 <span class="set-label">Set ${s}</span>
-                <div><input type="number" step="0.5" class="input-set-weight" placeholder="Weight" value="${prevW}"></div>
+                <div><input type="number" step="0.5" class="input-set-weight" placeholder="Weight" value="${prevW}" oninput="handleWeightInput(this, ${s - 1})"></div>
                 <div><input type="number" class="input-set-reps" placeholder="Reps" value="${prevR}"></div>
             </div>`;
         }
@@ -1096,45 +1148,49 @@
             }
 
             const sanitizedName = ex.name.replace(/\s+/g, '-');
+            const isOpen = !!openBlocks[sanitizedName];
 
             return `
             <div class="exercise-block" data-name="${ex.name}" data-type="${ex.type}">
-                <div class="exercise-header-row">
-                    <div>
+                <div class="exercise-header-clickable" onclick="toggleExerciseCollapse('${sanitizedName}')">
+                    <div class="exercise-title-group">
+                        <span class="collapse-icon" id="icon-${sanitizedName}">${isOpen ? '▲' : '▼'}</span>
                         <strong>${ex.name}</strong> 
                         <span class="${isDeload ? 'badge-deload' : 'badge'}">${isDeload ? 'Deload (-20%)' : (ex.type === 'reps' ? 'Reps/Weight' : 'Duration')}</span>
                     </div>
-                    <div class="action-group">
+                    <div class="action-group" onclick="event.stopPropagation()">
                         <button class="order-btn" onclick="moveExerciseLog(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
                         <button class="order-btn" onclick="moveExerciseLog(${idx}, 1)" ${idx === dayExercises.length - 1 ? 'disabled' : ''}>▼</button>
                     </div>
                 </div>
-                <div class="previous-info">${prevText}</div>
-                ${ex.type === 'reps' ? `
-                    <div style="margin-bottom: 8px;">
-                        <label>Number of Sets ${isDeload ? '<strong style="color:var(--warning);">(Deload: -1 Set)</strong>' : ''}</label>
-                        <select class="input-rep-sets-count" onchange="renderRepSets('${ex.name}', this.value, ${isDeload})">
-                            ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == targetSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div id="reps-sets-${sanitizedName}"></div>
-                ` : `
-                    <div class="row">
-                        <div>
-                            <label>Sets ${isDeload ? '<strong style="color:var(--warning);">(Deload: -1 Set)</strong>' : ''}</label>
-                            <select class="input-duration-sets-count" onchange="renderDurationSets('${ex.name}', this.value)">
+                <div class="exercise-body" id="body-${sanitizedName}" style="display: ${isOpen ? 'block' : 'none'};">
+                    <div class="previous-info">${prevText}</div>
+                    ${ex.type === 'reps' ? `
+                        <div style="margin-bottom: 8px;">
+                            <label>Number of Sets ${isDeload ? '<strong style="color:var(--warning);">(Deload: -1 Set)</strong>' : ''}</label>
+                            <select class="input-rep-sets-count" onchange="renderRepSets('${ex.name}', this.value, ${isDeload})">
                                 ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == targetSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
                             </select>
                         </div>
-                        <div>
-                            <label>Added Weight (optional)</label>
-                            <input type="number" step="0.5" class="input-duration-weight" placeholder="0" value="${defaultWeight}">
+                        <div id="reps-sets-${sanitizedName}"></div>
+                    ` : `
+                        <div class="row">
+                            <div>
+                                <label>Sets ${isDeload ? '<strong style="color:var(--warning);">(Deload: -1 Set)</strong>' : ''}</label>
+                                <select class="input-duration-sets-count" onchange="renderDurationSets('${ex.name}', this.value)">
+                                    ${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${n == targetSets ? 'selected' : ''}>${n} Set${n > 1 ? 's' : ''}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label>Added Weight (optional)</label>
+                                <input type="number" step="0.5" class="input-duration-weight" placeholder="0" value="${defaultWeight}">
+                            </div>
                         </div>
+                        <div id="duration-sets-${sanitizedName}"></div>
+                    `}
+                    <div style="margin-top: 8px;">
+                        <input type="text" class="input-exercise-note" placeholder="Exercise note (e.g., dropped reps on set 3, wider grip)">
                     </div>
-                    <div id="duration-sets-${sanitizedName}"></div>
-                `}
-                <div style="margin-top: 8px;">
-                    <input type="text" class="input-exercise-note" placeholder="Exercise note (e.g., dropped reps on set 3, wider grip)">
                 </div>
             </div>`;
         }).join('');
