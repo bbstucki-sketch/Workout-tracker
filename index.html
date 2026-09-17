@@ -491,6 +491,11 @@
     <div id="historyTab" class="tab-content">
         <div class="card">
             <h3>Filter History</h3>
+            <label>Filter by Exercise / Workout</label>
+            <select id="historyExerciseFilter" onchange="renderHistory()">
+                <option value="ALL">All Workouts / Exercises</option>
+            </select>
+
             <div class="row">
                 <div>
                     <label>Filter by Day</label>
@@ -826,7 +831,10 @@
         if (evt) evt.target.classList.add('active');
         
         if (tabId === 'manageTab') renderManageExercises();
-        if (tabId === 'historyTab') renderHistory();
+        if (tabId === 'historyTab') {
+            populateHistoryExerciseFilter();
+            renderHistory();
+        }
         if (tabId === 'logTab') renderPreloadedWorkout();
         if (tabId === 'progressTab') populateProgressTab();
     }
@@ -1001,7 +1009,7 @@
                         <div class="day-checkboxes" id="edit-days-${i}">
                             ${WEEKDAYS.map(d => `
                                 <label class="day-checkbox-item">
-                                    <input type="checkbox" value="${d}" ${ex.days && ex.days.includes(d) ? 'checked' : ''}> ${d}
+                                    <input type="checkbox" value="${d}" ${ex.days && ex.days.includes(d) ? 'checked' : ''}>${d}
                                 </label>
                             `).join('')}
                         </div>
@@ -1283,6 +1291,7 @@
             saveState();
             setCurrentTimestamp();
             renderPreloadedWorkout();
+            populateHistoryExerciseFilter();
             showCompletionModal();
         } else {
             alert("Please enter weights/reps or duration for at least one set before saving.");
@@ -1303,13 +1312,32 @@
         logs.splice(index, 1);
         pendingHistoryDeleteIndex = null;
         saveState();
+        populateHistoryExerciseFilter();
         renderHistory();
+    }
+
+    function populateHistoryExerciseFilter() {
+        const select = document.getElementById('historyExerciseFilter');
+        const currentVal = select.value;
+
+        // Collect all unique exercise names from logs
+        const uniqueExercises = [...new Set(logs.map(l => l.name))].sort();
+
+        select.innerHTML = '<option value="ALL">All Workouts / Exercises</option>' + 
+            uniqueExercises.map(exName => `<option value="${exName}">${exName}</option>`).join('');
+
+        if (uniqueExercises.includes(currentVal)) {
+            select.value = currentVal;
+        } else {
+            select.value = "ALL";
+        }
     }
 
     function renderHistory() {
         const historyList = document.getElementById('historyList');
         const dayFilter = document.getElementById('historyDayFilter').value;
         const timeFilter = document.getElementById('historyTimeFilter').value;
+        const exerciseFilter = document.getElementById('historyExerciseFilter').value;
 
         if (logs.length === 0) {
             historyList.innerHTML = "No logged workouts yet.";
@@ -1321,6 +1349,7 @@
             const originalIndex = logs.length - 1 - reversedIdx;
             return { ...l, originalIndex };
         }).filter(l => {
+            if (exerciseFilter !== 'ALL' && l.name !== exerciseFilter) return false;
             if (dayFilter !== 'ALL' && l.day !== dayFilter) return false;
             
             if (timeFilter !== 'ALL') {
@@ -1360,7 +1389,7 @@
             } else {
                 const weightStr = l.weight ? ` (+${l.weight} lbs)` : '';
                 detail = l.durations 
-                    ? `${l.durations.map((d, idx) => `Set ${idx+1}: ${formatTime(d)}`).join(' | ')}${weightStr}`
+                    ? `${l.durations.map((d, idx) => `Set ${idx+1}:${formatTime(d)}`).join(' | ')}${weightStr}`
                     : `${formatTime(l.duration)}${weightStr}`;
             }
 
@@ -1541,6 +1570,7 @@
     }
 
     renderPreloadedWorkout();
+    populateHistoryExerciseFilter();
 </script>
 </body>
 </html>
