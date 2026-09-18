@@ -346,7 +346,7 @@
         .set-label { font-size: 0.85em; color: var(--subtext); width: 45px; flex-shrink: 0; }
         .edit-box { background: #252525; padding: 10px; border-radius: 6px; margin-top: 8px; }
 
-        .note-tag { font-style: italic; color: #bb86fc; font-size: 0.85em; margin-top: 2px; }
+        .note-tag { font-style: italic; color: #bb86fc; font-size: 0.85em; display: inline-block; margin-top: 4px; }
 
         .chart-container {
             position: relative;
@@ -1143,7 +1143,7 @@
                     prevText = `Last (${lastLog.date}): ${durDisplay}${weightStr}`;
                 }
                 if (lastLog.note) {
-                    prevText += ` <br><span class="note-tag">Note: ${lastLog.note}</span>`;
+                    prevText += `<br><span class="note-tag">📝 Previous Note: "${lastLog.note}"</span>`;
                 }
             }
 
@@ -1197,7 +1197,7 @@
                         <div id="duration-sets-${sanitizedName}"></div>
                     `}
                     <div style="margin-top: 8px;">
-                        <input type="text" class="input-exercise-note" placeholder="Exercise note (e.g., dropped reps on set 3, wider grip)">
+                        <input type="text" class="input-exercise-note" placeholder="Exercise note for today (e.g., dropped reps on set 3, wider grip)">
                     </div>
                 </div>
             </div>`;
