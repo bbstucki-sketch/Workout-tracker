@@ -19,6 +19,26 @@
             --input-bg: #2d2d2d;
             --danger: #cf6679;
             --warning: #ffb74d;
+            --border-color: #333333;
+            --hover-bg: #2c2c2c;
+            --chart-bg: #181818;
+            --overlay-bg: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Light Mode Theme Overrides */
+        body.light-mode {
+            --bg: #f4f5f7;
+            --card: #ffffff;
+            --accent: #6200ee;
+            --text: #1c1c1c;
+            --subtext: #666666;
+            --input-bg: #f0f0f0;
+            --danger: #b00020;
+            --warning: #e65100;
+            --border-color: #e0e0e0;
+            --hover-bg: #e8e8e8;
+            --chart-bg: #ffffff;
+            --overlay-bg: rgba(0, 0, 0, 0.4);
         }
 
         body {
@@ -29,6 +49,7 @@
             padding: 16px;
             display: flex;
             justify-content: center;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         .container { width: 100%; max-width: 500px; position: relative; }
@@ -60,7 +81,7 @@
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7);
+            background: var(--overlay-bg);
             z-index: 1000;
             justify-content: center;
             align-items: flex-start;
@@ -72,7 +93,7 @@
 
         .modal-content {
             background: var(--bg);
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             width: 100%;
             max-width: 480px;
@@ -85,7 +106,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 8px;
             margin-bottom: 16px;
         }
@@ -125,7 +146,7 @@
 
         .tab-btn.active {
             background-color: var(--accent);
-            color: #000;
+            color: #fff;
         }
 
         .tab-content { display: none; }
@@ -136,7 +157,7 @@
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 16px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
         label { display: block; margin-top: 8px; font-size: 0.9em; color: var(--subtext); }
@@ -145,7 +166,7 @@
             padding: 10px;
             margin-top: 4px;
             border-radius: 4px;
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
             background-color: var(--input-bg);
             color: var(--text);
             box-sizing: border-box;
@@ -156,7 +177,7 @@
 
         button.primary-btn {
             background-color: var(--accent);
-            color: #000;
+            color: #fff;
             font-weight: bold;
             border: none;
             margin-top: 16px;
@@ -164,9 +185,9 @@
         }
 
         .secondary-btn {
-            background-color: #333;
+            background-color: var(--input-bg);
             color: var(--text);
-            border: 1px solid #444;
+            border: 1px solid var(--border-color);
             font-weight: bold;
             cursor: pointer;
         }
@@ -179,7 +200,7 @@
             background: var(--input-bg);
             padding: 10px;
             border-radius: 4px;
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
             max-height: 140px;
             overflow-y: auto;
         }
@@ -200,7 +221,7 @@
         }
 
         .previous-info {
-            background-color: #252525;
+            background-color: var(--input-bg);
             border-left: 3px solid var(--accent);
             padding: 8px 12px;
             margin: 8px 0;
@@ -211,7 +232,7 @@
         .row { display: flex; gap: 8px; align-items: center; }
         .row > div { flex: 1; }
 
-        .list-item { border-bottom: 1px solid #333; padding: 12px 0; }
+        .list-item { border-bottom: 1px solid var(--border-color); padding: 12px 0; }
 
         .list-item-header {
             display: flex;
@@ -225,9 +246,9 @@
         .action-group { display: flex; gap: 4px; align-items: center; }
 
         .order-btn {
-            background-color: #333;
+            background-color: var(--input-bg);
             color: var(--text);
-            border: 1px solid #444;
+            border: 1px solid var(--border-color);
             padding: 4px 8px;
             width: auto;
             margin: 0;
@@ -240,7 +261,7 @@
         .order-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .edit-btn {
-            background-color: #333;
+            background-color: var(--input-bg);
             color: var(--accent);
             border: 1px solid var(--accent);
             padding: 6px 10px;
@@ -264,9 +285,9 @@
         }
 
         .cancel-btn {
-            background-color: #444;
-            color: #fff;
-            border: none;
+            background-color: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border-color);
             padding: 6px 10px;
             width: auto;
             margin: 0;
@@ -285,16 +306,16 @@
 
         /* Collapsible Exercise Styling */
         .exercise-block {
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
             margin-bottom: 8px;
-            background-color: #1a1a1a;
+            background-color: var(--card);
             overflow: hidden;
         }
 
         .exercise-header-clickable {
             padding: 12px;
-            background-color: #242424;
+            background-color: var(--input-bg);
             cursor: pointer;
             user-select: none;
             display: flex;
@@ -304,7 +325,7 @@
         }
 
         .exercise-header-clickable:hover {
-            background-color: #2c2c2c;
+            background-color: var(--hover-bg);
         }
 
         .exercise-title-group {
@@ -321,12 +342,12 @@
 
         .exercise-body {
             padding: 12px;
-            border-top: 1px solid #333;
+            border-top: 1px solid var(--border-color);
             background-color: var(--card);
         }
 
         .badge {
-            background-color: #2d2d2d;
+            background-color: var(--input-bg);
             color: var(--accent);
             padding: 2px 6px;
             border-radius: 4px;
@@ -334,8 +355,9 @@
         }
 
         .badge-deload {
-            background-color: #3e2723;
+            background-color: var(--input-bg);
             color: var(--warning);
+            border: 1px solid var(--warning);
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.75em;
@@ -344,16 +366,17 @@
 
         .set-row { margin-top: 6px; }
         .set-label { font-size: 0.85em; color: var(--subtext); width: 45px; flex-shrink: 0; }
-        .edit-box { background: #252525; padding: 10px; border-radius: 6px; margin-top: 8px; }
+        .edit-box { background: var(--input-bg); padding: 10px; border-radius: 6px; margin-top: 8px; }
 
-        .note-tag { font-style: italic; color: #bb86fc; font-size: 0.85em; display: inline-block; margin-top: 4px; }
+        .note-tag { font-style: italic; color: var(--accent); font-size: 0.85em; display: inline-block; margin-top: 4px; }
 
         .chart-container {
             position: relative;
             width: 100%;
             height: 280px;
             margin-top: 16px;
-            background: #181818;
+            background: var(--chart-bg);
+            border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 10px;
             box-sizing: border-box;
@@ -362,7 +385,7 @@
         canvas { width: 100% !important; height: 100% !important; }
 
         .deload-banner {
-            background-color: #2e1d08;
+            background-color: var(--input-bg);
             border: 1px solid var(--warning);
             color: var(--warning);
             padding: 10px;
@@ -372,6 +395,58 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        /* Toggle Switch Component */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text);
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: #fff;
         }
     </style>
 </head>
@@ -432,7 +507,7 @@
         <div class="card">
             <div id="preloadedList">Select a day to view preloaded routine.</div>
             
-            <div id="dailyNotesContainer" style="display:none; margin-top: 16px; border-top: 1px solid #333; padding-top: 12px;">
+            <div id="dailyNotesContainer" style="display:none; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
                 <label>Daily Overall Notes</label>
                 <textarea id="dailyNotesInput" placeholder="e.g., Felt energetic, backlogged from yesterday, deload felt smooth..."></textarea>
             </div>
@@ -527,7 +602,7 @@
         </div>
     </div>
 
-    <!-- TAB 4: PROGRESS GRAPH (MULTI-SELECT WITH DAY FILTER) -->
+    <!-- TAB 4: PROGRESS GRAPH -->
     <div id="progressTab" class="tab-content">
         <div class="card">
             <h3>Exercise Progress</h3>
@@ -567,6 +642,18 @@
         <div class="modal-header">
             <h3 style="margin:0; color:var(--accent);">Tools & Settings</h3>
             <button class="close-btn" onclick="toggleMenu()">✕</button>
+        </div>
+
+        <!-- APPEARANCE / THEME TOGGLE CARD -->
+        <div class="card">
+            <h3>Appearance</h3>
+            <div class="toggle-row">
+                <span style="font-size: 0.9em; color: var(--text);" id="themeModeLabel">Light Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
 
         <!-- GOOGLE SHEETS IMPORT CARD -->
@@ -610,6 +697,43 @@
     const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const CHART_COLORS = ['#bb86fc', '#03dac6', '#ffb74d', '#cf6679', '#4fc3f7', '#aed581'];
 
+    // Theme Switcher Initialization
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const toggle = document.getElementById('themeToggle');
+        const label = document.getElementById('themeModeLabel');
+        
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+            toggle.checked = true;
+            label.innerText = 'Light Mode Enabled';
+        } else {
+            document.body.classList.remove('light-mode');
+            toggle.checked = false;
+            label.innerText = 'Light Mode';
+        }
+    }
+
+    function toggleTheme() {
+        const toggle = document.getElementById('themeToggle');
+        const label = document.getElementById('themeModeLabel');
+        
+        if (toggle.checked) {
+            document.body.classList.add('light-mode');
+            localStorage.setItem('theme', 'light');
+            label.innerText = 'Light Mode Enabled';
+        } else {
+            document.body.classList.remove('light-mode');
+            localStorage.setItem('theme', 'dark');
+            label.innerText = 'Light Mode';
+        }
+        
+        // Redraw chart if active to match updated text/border colors
+        if (document.getElementById('progressTab').classList.contains('active')) {
+            drawProgressChart();
+        }
+    }
+
     let exercises = JSON.parse(localStorage.getItem('exercises')) || [
         { name: "Bench Press", type: "reps", days: ["Monday"] },
         { name: "Plank", type: "duration", days: ["Monday", "Wednesday", "Friday"] }
@@ -629,7 +753,6 @@
     let pendingHistoryDeleteIndex = null;
     let editingIndex = null;
 
-    // Track collapse state across re-renders
     let openBlocks = {};
 
     function toggleExerciseCollapse(sanitizedName) {
@@ -648,7 +771,6 @@
         }
     }
 
-    // Cascade weight values down through sets
     function handleWeightInput(changedInput, startIdx) {
         const val = changedInput.value;
         const parentBlock = changedInput.closest('.exercise-block');
@@ -1320,7 +1442,6 @@
         const select = document.getElementById('historyExerciseFilter');
         const currentVal = select.value;
 
-        // Collect all unique exercise names from logs
         const uniqueExercises = [...new Set(logs.map(l => l.name))].sort();
 
         select.innerHTML = '<option value="ALL">All Workouts / Exercises</option>' + 
@@ -1410,7 +1531,6 @@
         }).join('');
     }
 
-    // --- PROGRESS TAB WITH DAY-OF-WEEK FILTER ---
     function populateProgressTab() {
         const container = document.getElementById('chartExerciseCheckboxes');
         const selectedDay = document.getElementById('progressDayFilter').value;
@@ -1458,8 +1578,12 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Read dynamic theme text color from CSS
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#e0e0e0';
+        const borderColor = getComputedStyle(document.body).getPropertyValue('--border-color').trim() || '#333333';
+
         if (selectedCbs.length === 0) {
-            ctx.fillStyle = '#a0a0a0';
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--subtext').trim() || '#a0a0a0';
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('Select at least one exercise to graph.', canvas.width / 2, canvas.height / 2);
@@ -1500,7 +1624,7 @@
         const paddingTop = 40;
         const maxVal = globalMax > 0 ? globalMax : 1;
 
-        ctx.strokeStyle = '#333';
+        ctx.strokeStyle = borderColor;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(paddingLeft, paddingTop);
@@ -1518,7 +1642,7 @@
             ctx.arc(legendX + 4, legendY - 3, 4, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = '#e0e0e0';
+            ctx.fillStyle = textColor;
             ctx.textAlign = 'left';
             ctx.fillText(ds.name, legendX + 12, legendY);
             
@@ -1555,7 +1679,7 @@
                 ctx.arc(x, y, 4, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.fillStyle = '#e0e0e0';
+                ctx.fillStyle = textColor;
                 ctx.font = '10px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText(p.value, x, y - 7);
@@ -1569,6 +1693,7 @@
         setTimeout(() => { el.style.display = 'none'; }, 2000);
     }
 
+    initTheme();
     renderPreloadedWorkout();
     populateHistoryExerciseFilter();
 </script>
