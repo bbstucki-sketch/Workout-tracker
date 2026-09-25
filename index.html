@@ -782,6 +782,75 @@
         }
     }
 
+    // Capture current (unsaved) form values so they survive reordering
+    function getCurrentDrafts() {
+        const drafts = {};
+        document.querySelectorAll('.exercise-block').forEach(block => {
+            const name = block.getAttribute('data-name');
+            const type = block.getAttribute('data-type');
+            const noteEl = block.querySelector('.input-exercise-note');
+            const data = { note: noteEl ? noteEl.value : '' };
+
+            if (type === 'reps') {
+                const setsSelect = block.querySelector('.input-rep-sets-count');
+                data.setsCount = setsSelect ? setsSelect.value : '3';
+                data.sets = [];
+                const weightInputs = block.querySelectorAll('.input-set-weight');
+                const repsInputs = block.querySelectorAll('.input-set-reps');
+                weightInputs.forEach((w, i) => {
+                    data.sets.push({
+                        weight: w.value,
+                        reps: repsInputs[i] ? repsInputs[i].value : ''
+                    });
+                });
+            } else {
+                const setsSelect = block.querySelector('.input-duration-sets-count');
+                data.setsCount = setsSelect ? setsSelect.value : '3';
+                const weightEl = block.querySelector('.input-duration-weight');
+                data.weight = weightEl ? weightEl.value : '';
+                data.durations = [];
+                const minInputs = block.querySelectorAll('.input-duration-min');
+                const secInputs = block.querySelectorAll('.input-duration-sec');
+                minInputs.forEach((m, i) => {
+                    data.durations.push({
+                        min: m.value,
+                        sec: secInputs[i] ? secInputs[i].value : ''
+                    });
+                });
+            }
+            drafts[name] = data;
+        });
+        return drafts;
+    }
+
+    // Restore previously captured draft values after re-render
+    function applyDraftToExercise(exName, type, draft) {
+        const block = document.querySelector(`.exercise-block[data-name="${exName}"]`);
+        if (!block || !draft) return;
+
+        const noteEl = block.querySelector('.input-exercise-note');
+        if (noteEl) noteEl.value = draft.note || '';
+
+        if (type === 'reps') {
+            const weightInputs = block.querySelectorAll('.input-set-weight');
+            const repsInputs = block.querySelectorAll('.input-set-reps');
+            (draft.sets || []).forEach((s, i) => {
+                if (weightInputs[i]) weightInputs[i].value = s.weight ?? '';
+                if (repsInputs[i]) repsInputs[i].value = s.reps ?? '';
+            });
+        } else {
+            const weightEl = block.querySelector('.input-duration-weight');
+            if (weightEl) weightEl.value = draft.weight ?? '';
+
+            const minInputs = block.querySelectorAll('.input-duration-min');
+            const secInputs = block.querySelectorAll('.input-duration-sec');
+            (draft.durations || []).forEach((d, i) => {
+                if (minInputs[i]) minInputs[i].value = d.min ?? '';
+                if (secInputs[i]) secInputs[i].value = d.sec ?? '';
+            });
+        }
+    }
+
     function getSundayDateString(d) {
         const date = new Date(d);
         const day = date.getDay();
@@ -1010,6 +1079,9 @@
     }
 
     function moveExerciseLog(index, direction) {
+        // Capture current (unsaved) form values before re-render
+        const drafts = getCurrentDrafts();
+
         const selectedDay = document.getElementById('daySelect').value;
         const dayExercises = exercises.filter(ex => ex.days && ex.days.includes(selectedDay));
         
@@ -1027,7 +1099,7 @@
             exercises[globalIndexCurrent] = exercises[globalIndexTarget];
             exercises[globalIndexTarget] = temp;
             saveState();
-            renderPreloadedWorkout();
+            renderPreloadedWorkout(drafts);   // pass drafts so they are restored
         }
     }
 
@@ -1221,7 +1293,7 @@
         container.innerHTML = html;
     }
 
-    function renderPreloadedWorkout() {
+    function renderPreloadedWorkout(drafts = null) {
         const selectedDay = document.getElementById('daySelect').value;
         const currentWeek = parseInt(document.getElementById('weekSelect').value);
 
@@ -1269,8 +1341,15 @@
                 }
             }
 
-            let baseSets = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.sets ? lastLog.sets : (lastLog && lastLog.durations ? lastLog.durations.length : 3));
+            // Prefer draft set count when available (preserves unsaved changes)
+            let baseSets = lastLog && lastLog.setsData ? lastLog.setsData.length 
+                         : (lastLog && lastLog.sets ? lastLog.sets 
+                         : (lastLog && lastLog.durations ? lastLog.durations.length : 3));
             let targetSets = isDeload ? Math.max(1, baseSets - 1) : baseSets;
+
+            if (drafts && drafts[ex.name] && drafts[ex.name].setsCount) {
+                targetSets = parseInt(drafts[ex.name].setsCount, 10) || targetSets;
+            }
 
             let defaultWeight = lastLog && lastLog.weight ? lastLog.weight : '';
             if (isDeload && defaultWeight !== '') {
@@ -1325,15 +1404,27 @@
             </div>`;
         }).join('');
 
+        // Render the set inputs (from last log as usual)
         dayExercises.forEach(ex => {
             const lastLog = logs.slice().reverse().find(l => l.name === ex.name);
-            let baseSets = lastLog && lastLog.setsData ? lastLog.setsData.length : (lastLog && lastLog.durations ? lastLog.durations.length : 3);
+            let baseSets = lastLog && lastLog.setsData ? lastLog.setsData.length 
+                         : (lastLog && lastLog.durations ? lastLog.durations.length : 3);
             let targetSets = isDeload ? Math.max(1, baseSets - 1) : baseSets;
+
+            // Override with draft set count if present
+            if (drafts && drafts[ex.name] && drafts[ex.name].setsCount) {
+                targetSets = parseInt(drafts[ex.name].setsCount, 10) || targetSets;
+            }
 
             if (ex.type === 'reps') {
                 renderRepSets(ex.name, targetSets, isDeload);
             } else {
                 renderDurationSets(ex.name, targetSets);
+            }
+
+            // Restore any unsaved draft values on top of the defaults
+            if (drafts && drafts[ex.name]) {
+                applyDraftToExercise(ex.name, ex.type, drafts[ex.name]);
             }
         });
     }
