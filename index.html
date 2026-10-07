@@ -920,24 +920,56 @@
             return;
         }
 
+        // Simple but robust CSV line parser that preserves spaces inside fields
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        // Escaped quote ("")
+                        current += '"';
+                        i++; // skip the second quote
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch sheet data.');
             
             const csvText = await response.text();
-            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
 
             const newExercises = [];
 
-            for (let i = 1; i < lines.length; i++) {
-                const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+            for (let i = 1; i < lines.length; i++) {   // skip header row
+                const row = parseCSVLine(lines[i]);
                 if (row.length < 3) continue;
 
-                const name = row[0].replace(/^"|"$/g, '').trim();
-                const type = row[1].replace(/^"|"$/g, '').trim().toLowerCase();
-                const daysRaw = row[2].replace(/^"|"$/g, '').trim();
+                const name = (row[0] || '').replace(/^"|"$/g, '').trim();
+                const type = (row[1] || '').replace(/^"|"$/g, '').trim().toLowerCase();
+                const daysRaw = (row[2] || '').replace(/^"|"$/g, '').trim();
 
-                const assignedDays = daysRaw.split(',').map(d => d.trim()).filter(d => d);
+                const assignedDays = daysRaw
+                    .split(',')
+                    .map(d => d.trim())
+                    .filter(d => d);
 
                 if (name && (type === 'reps' || type === 'duration')) {
                     newExercises.push({ name, type, days: assignedDays });
